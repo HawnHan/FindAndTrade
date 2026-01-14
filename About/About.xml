@@ -1,13 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ModMetaData>
-	<name>RimMod</name>
+	<name>Find and Auto Sell</name>
 	<author>Meme Goddess</author>
 	<supportedVersions>
-		<li>1.5</li>
 		<li>1.6</li>
 	</supportedVersions>
-	<packageId>Memegoddess.RimMod</packageId>
-	<description>Mod Template</description>
+	<packageId>Memegoddess.FindAndAutoSell</packageId>
+	<description>Find items, and auto sell them.</description>
 	<url>https://steamcommunity.com/sharedfiles/filedetails/?id=3526439840</url>
 	<modDependencies>
 		<li>

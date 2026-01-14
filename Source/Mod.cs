@@ -8,6 +8,12 @@ using Verse;
 
 namespace RimMod
 {
+    /*
+    Ideas:
+    - Special roof to allow drop pods to land through. 
+    - Auto trading table
+    - Mark as junk (Gizmo, hidden rule)
+     */
     public class Mod : Verse.Mod
     {
         public Mod(ModContentPack content) : base(content)
