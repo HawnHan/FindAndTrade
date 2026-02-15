@@ -12,6 +12,7 @@ namespace MGAutoSell
     internal class TradeRuleEditor : SearchEditorRevertableWindow
     {
         private readonly TradeRule _tradeRule;
+        private static string AggByDef = "MGAutoSell.AggByDef".Translate(), AggByRule = "MGAutoSell.AggByRule".Translate();
 
         public TradeRuleEditor(TradeRule tradeRule) : base(tradeRule.Search, "Trade Rule")
         {
@@ -20,12 +21,12 @@ namespace MGAutoSell
 
         protected override void DrawHeader(Rect headerRect)
         {
-            var search = this.filter as QuerySearch;
+            var search = filter as QuerySearch;
             var rect1 = headerRect.LeftPart(0.4f);
             if (search != null)
             {
                 Widgets.Label(rect1, "TD.Listing".Translate() + search.ListType.TranslateEnum<SearchListType>());
-                if (!this.locked)
+                if (!locked)
                 {
                     Widgets.DrawHighlightIfMouseover(rect1);
                     if (Widgets.ButtonInvisible(rect1))
@@ -62,18 +63,32 @@ namespace MGAutoSell
 
             var rect2 = headerRect.RightPart(0.6f).LeftPart(0.5f);
             Widgets.Label(rect2,
-                this.filter.MatchAllQueries ? "TD.MatchingAllFilters".Translate() : "TD.MatchingAnyFilter".Translate());
-            if (!this.locked)
+                filter.MatchAllQueries ? "TD.MatchingAllFilters".Translate() : "TD.MatchingAnyFilter".Translate());
+            if (!locked)
             {
                 Widgets.DrawHighlightIfMouseover(rect2);
                 if (Widgets.ButtonInvisible(rect2))
-                    this.filter.MatchAllQueries = !this.filter.MatchAllQueries;
+                    filter.MatchAllQueries = !filter.MatchAllQueries;
             }
 
             if (search == null)
                 return;
 
             var rect3 = headerRect.RightPart(0.3f);
+            var label =  _tradeRule.Aggregation switch
+            {
+                TradeRuleAggregation.ThingDef => AggByDef,
+                TradeRuleAggregation.Rule => AggByRule,
+                _ => throw new ArgumentOutOfRangeException()
+            };
+
+            Widgets.Label(rect3, label);
+            if (!locked)
+            {
+                Widgets.DrawHighlightIfMouseover(rect3);
+                if (Widgets.ButtonInvisible(rect3))
+                    _tradeRule.Aggregation = _tradeRule.Aggregation.Next();
+            }
         }
     }
 }

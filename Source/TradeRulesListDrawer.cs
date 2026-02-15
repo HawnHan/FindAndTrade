@@ -38,7 +38,7 @@ namespace MGAutoSell
             buyWhenBelowRect.width -= 4;
 
             string buyWhenBelowBuffer = null;
-            Widgets.TextFieldNumeric(buyWhenBelowRect, ref item.BuyWhenBelow, ref buyWhenBelowBuffer, 0, 10000);
+            Widgets.TextFieldNumeric(buyWhenBelowRect, ref item.BuyWhenBelow, ref buyWhenBelowBuffer);
             row.Label("Buy when below");
 
 

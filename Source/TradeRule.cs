@@ -14,16 +14,23 @@ namespace MGAutoSell
         public int BuyUpTo;
         public int SellDownTo;
         public bool Enabled;
+        public TradeRuleAggregation Aggregation = TradeRuleAggregation.ThingDef;
         public QuerySearch search;
         public QuerySearch Search => search;
 
+        public bool AllowSell => SellDownTo > 0 || NoConfig;
+        public bool AllowBuy => BuyUpTo > 0;
+
+        public bool NoConfig => SellDownTo == 0 && BuyUpTo == 0 && BuyWhenBelow == 0;
+
         public void ExposeData()
         {
-            Scribe_Deep.Look(ref search, "search");
-            Scribe_Values.Look(ref BuyWhenBelow, "BuyWhenBelow");
-            Scribe_Values.Look(ref BuyUpTo, "BuyUpTo");
-            Scribe_Values.Look(ref SellDownTo, "SellDownTo");
-            Scribe_Values.Look(ref Enabled, "Enabled");
+            Scribe_Deep.Look(ref search, nameof(search));
+            Scribe_Values.Look(ref BuyWhenBelow, nameof(BuyWhenBelow));
+            Scribe_Values.Look(ref BuyUpTo, nameof(BuyUpTo));
+            Scribe_Values.Look(ref SellDownTo, nameof(SellDownTo));
+            Scribe_Values.Look(ref Enabled, nameof(Enabled));
+            Scribe_Values.Look(ref Aggregation, nameof(Aggregation));
         }
 
         public TradeRule(string name)
