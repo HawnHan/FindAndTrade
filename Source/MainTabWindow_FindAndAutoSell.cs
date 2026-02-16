@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Remoting.Messaging;
 using System.Text;
 using System.Threading.Tasks;
 using RimWorld;
@@ -26,6 +27,9 @@ namespace MGAutoSell
         private float totalSellEntryPrice = 0;
         private long nextCache = 0;
         private long nextQuickCache = 0;
+
+        public override Vector2 RequestedTabSize => new(1010f, 300f);
+        protected override float Margin => 8f;
         public bool SellListDirty => comp.tradeRules.Any(y => y.search.changed);
 
         public MainTabWindow_FindAndAutoSell()
@@ -50,9 +54,120 @@ namespace MGAutoSell
         }
 
         Vector2 listerScroll = Vector2.zero;
-        Vector2 BuyingSize = Text.CalcSize("Buy Until"), SellingSize = Text.CalcSize("Sell Until");
+        private static string buyLabel = "Buy Up To", sellLabel = "Minimum to keep";
+        Vector2? BuyingSize, SellingSize ;
         private long previousRenderTime = 0;
         public override void DoWindowContents(Rect inRect)
+        {
+            var color = GUI.color;
+            var font = Text.Font;
+            Text.Font = GameFont.Small;
+            BuyingSize ??= Text.CalcSize(buyLabel);
+            SellingSize ??= Text.CalcSize(sellLabel);
+            var buyingSize = BuyingSize.Value;
+            var sellingSize = SellingSize.Value;
+
+            var timestamp = Stopwatch.GetTimestamp();
+
+            var width = editor != null ? 600f : 400f;
+
+            
+
+            var rulesRect = inRect.LeftPartPixels(width);
+
+            //Widgets.DrawBox(rulesRect);
+
+            if (editor != null)
+            {
+                editor.DoWindowContents(rulesRect);
+                var buttonRect = rulesRect.BottomPartPixels(30f).LeftPartPixels(30f);
+                if (Widgets.ButtonImage(buttonRect, TexButton.Banish))
+                {
+                    editor?.PostClose();
+                    editor = null;
+                    SelectedTradeRule = null;
+                }
+            }
+            else
+            {
+                inRect.y -= 4;
+                Text.Font = GameFont.Medium;
+                GUI.color = new Color(1, 1, 1, 0.4f);
+                Widgets.Label(inRect, "<i>Find / Auto Sell</i>");
+                Text.Font = GameFont.Small;
+                GUI.color = color;
+                inRect.y += 4;
+
+                var height = 300f;
+                var header = rulesRect.TopPartPixels(30).LeftPartPixels(rulesRect.width - 16);
+                var body = rulesRect.MiddlePartPixels(rulesRect.width, rulesRect.height - 60);
+
+                var middle = 30;
+                var left = header.RightHalf();
+                left.x += middle - sellingSize.x / 2;
+                Widgets.Label(left, sellLabel);
+                Widgets.Label(header.RightPartPixels(Math.Max(middle + buyingSize.x / 2, buyingSize.x)), buyLabel);
+
+                var drawerListing = new Listing_StandardIndent();
+                drawerListing.BeginScrollView(body, ref listerScroll, body.LeftPartPixels(body.width - 16).TopPartPixels(comp.tradeRules.Count * 30).AtZero());
+                drawer.DrawQuerySearchList(drawerListing);
+                drawerListing.EndScrollView(ref height);
+
+                var controlsRect = rulesRect.BottomPartPixels(Text.LineHeight);
+                var controls = new WidgetRow(controlsRect.x, controlsRect.y);
+                if (controls.ButtonIcon(FindTex.GreyPlus))
+                    CreateRule();
+            }
+
+
+            var toSellRect = inRect.RightPartPixels(inRect.width - rulesRect.width - 12 - 16);
+            toSellRect.x -= 16;
+
+            GUI.color = new Color(1, 1, 1, 0.4f);
+            Widgets.DrawLineVertical(rulesRect.width + 6, 0, 300f);
+            GUI.color = color;
+
+            CacheItemsToSell();
+
+            int i = 0;
+            toSellRect.SplitHorizontally(Text.LineHeight, out var itemHeader, out toSellRect);
+
+            Widgets.DrawLightHighlight(itemHeader);
+
+            Widgets.Label(itemHeader.RightPartPixels(itemHeader.width - 40f), "Item");
+            GUI.DrawTexture(itemHeader.RightPartPixels(24f), ThingDefOf.Silver.uiIcon);
+
+            toSellRect.SplitHorizontally(4, out var gapHeader, out toSellRect);
+            Widgets.DrawLineHorizontal(gapHeader.x, gapHeader.y, gapHeader.width, new Color(1, 1, 1, 0.4f));
+
+            foreach (var (thingDef, count, total) in sellEntries)
+            {
+                toSellRect.SplitHorizontally(30f, out var row, out toSellRect);
+
+                if (i % 2 == 1)
+                    Widgets.DrawLightHighlight(row);
+                i++;
+
+                GUI.DrawTexture(row.LeftPartPixels(30), thingDef.uiIcon);
+                row.x += 40;
+                Widgets.Label(row, thingDef.GetLabel() + $" x{count}");
+                row.x -= 40;
+                var totalLabel = Math.Round(total, 0).ToStringSafe();
+                var size = Text.CalcSize(totalLabel);
+                Widgets.Label(row.RightPartPixels(size.x + 4), totalLabel);
+            }
+
+            var footer = toSellRect.BottomPartPixels(Text.LineHeight);
+            Widgets.DrawLightHighlight(footer);
+            Widgets.Label(footer, "Total:");
+
+            var footerRow = new WidgetRow(footer.xMax - 4, footer.y, UIDirection.LeftThenDown);
+            footerRow.Label(totalSellEntryPrice.ToStringSafe());
+            footerRow.Icon(ThingDefOf.Silver.uiIcon);
+            Text.Font = font;
+        }
+
+        public void DoWindowContentsOld(Rect inRect)
         {
             var timestamp = Stopwatch.GetTimestamp();
 
@@ -63,7 +178,11 @@ namespace MGAutoSell
             var height = 300f;
 
             var topRect = listing.GetRect(height);
-
+            //var color = GUI.color;
+            //GUI.color = new Color(1, 1, 1, 0.4f);
+            //var lineRect = topRect.MiddlePartPixels(1, height);
+            //Widgets.DrawLineVertical(lineRect.x, lineRect.y, height);
+            //GUI.color = color;
             var controlsRect = topRect.LeftHalf().BottomPartPixels(Text.LineHeight);
             var controls = new WidgetRow(controlsRect.x, controlsRect.y);
             if (controls.ButtonIcon(FindTex.GreyPlus))
@@ -76,9 +195,9 @@ namespace MGAutoSell
 
             var middle = 30;
             var left = header.RightHalf().LeftHalf();
-            left.x += middle - (SellingSize.x / 2);
-            Widgets.Label(left, "Sell Until");
-            Widgets.Label(header.RightPartPixels(middle + BuyingSize.x / 2), "Buy Until");
+            left.x += middle - (SellingSize.Value.x / 2);
+            Widgets.Label(left, sellLabel);
+            Widgets.Label(header.RightPartPixels(Math.Max(middle + BuyingSize.Value.x / 2, BuyingSize.Value.x)), buyLabel);
 
             drawerListing.BeginScrollView(body, ref listerScroll, body.LeftPartPixels(body.width - 16).TopPartPixels(comp.tradeRules.Count * 30).AtZero());
             drawer.DrawQuerySearchList(drawerListing);
