@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Defs>
+    <WorkGiverDef>
+        <defName>MGAutoSell</defName>
+        <workType>Warden</workType>
+        <priorityInType>90</priorityInType>
+        <verb>barter</verb>
+        <gerund>bartering</gerund>
+        <givesSatisfaction>true</givesSatisfaction>
+        <requiredCapacities>
+            <li>Talking</li>
+            <li>Manipulation</li>
+        </requiredCapacities>
+    </WorkGiverDef>
+</Defs>

@@ -14,6 +14,8 @@ using Verse;
 
 namespace MGAutoSell
 {
+    public record TradeEntry(Tradeable Tradeable, ThingDef ThingDef, int ColonyCount, int TraderCount);
+
     [StaticConstructorOnStartup]
     public static class TradeDealProcessor
     {
@@ -53,16 +55,16 @@ namespace MGAutoSell
         }
 
         [DebugAction("FindAndAutoSell", "DoTrade")]
-        public static void DoTrade()
+        public static void DEBUG_DoTrade()
         {
             var pawn = Find.CurrentMap.mapPawns.PawnsInFaction(Faction.OfPlayer);
-            var trader = pawn.MaxBy(x => x.skills?.GetSkill(SkillDefOf.Social).Level);
+            var socialPawn = pawn.MaxBy(x => x.skills?.GetSkill(SkillDefOf.Social).Level);
             var ships = Find.CurrentMap.passingShipManager.passingShips;
             StartGroupedTrading();
             foreach (var passingShip in ships)
             {
                 Log.Message($"Trading with {(passingShip as TradeShip).TraderName}");
-                TradeSession.SetupWith(passingShip as TradeShip, trader, false);
+                TradeSession.SetupWith(passingShip as TradeShip, socialPawn, false);
                 var deal = TradeSession.deal;
                 DoTradeDeal(deal);
 
@@ -86,10 +88,58 @@ namespace MGAutoSell
                 if(!actuallyTraded)
                     Debugger.Break();
 
-                DoLetter(passingShip as ITrader, trader, deal, trader.Position, buy, sell, silver);
+                DoLetter(passingShip as ITrader, socialPawn, deal, socialPawn.Position, buy, sell, silver);
 
             }
             EndGroupedTrading();
+        }
+
+        public static void DoTradeShips(Pawn socialPawn)
+        {
+            var ships = socialPawn.Map.passingShipManager.passingShips;
+
+            if(!ships.Any()) 
+                return;
+
+            try
+            {
+                StartGroupedTrading();
+
+                foreach (var passingShip in ships)
+                {
+                    var ship = (TradeShip)passingShip;
+
+                    if(ship == null)
+                        Log.Warning($"Ship was null? Perhaps not a ship? '{passingShip.GetType()}'. Skipping.");
+
+                    TradeSession.SetupWith(ship, socialPawn, false);
+                    var deal = TradeSession.deal;
+                    DoTradeDeal(deal);
+
+                    var silver = deal.CurrencyTradeable.CountToTransfer;
+
+                    var buy = deal.AllTradeables
+                        .Where(x => x.CountToTransfer > 0 && !x.IsCurrency)
+                        .Select(x => (x.ThingDef.label, x.CountToTransfer))
+                        .ToList();
+                    var sell = deal.AllTradeables
+                        .Where(x => x.CountToTransfer < 0 && !x.IsCurrency)
+                        .Select(x => (x.ThingDef.label, x.CountToTransfer))
+                        .ToList();
+
+                    if (!buy.Any() && !sell.Any())
+                        continue;
+
+                    if (!deal.TryExecute(out var actuallyTraded))
+                        continue;
+
+                    DoLetter(passingShip as ITrader, socialPawn, deal, socialPawn.Position, buy, sell, silver);
+                }
+            }
+            finally
+            {
+                EndGroupedTrading();
+            }
         }
 
         public static void DoTradeDeal(TradeDeal deal)
@@ -105,11 +155,8 @@ namespace MGAutoSell
             if (!autoTrade.tradeRules.Any())
                 return;
 
-            // Get tradeables list (property in most versions)
             var tradeables = deal.AllTradeables;
             if (tradeables == null) return;
-
-            bool changedAnything = false;
 
             var sellDictionary = new Dictionary<Tradeable, int>();
             var buyDictionary = new Dictionary<Tradeable, int>();
@@ -135,14 +182,17 @@ namespace MGAutoSell
 #if DEBUG
             performanceTracker.Checkpoint("Population");
 #endif
-            var itemsOnMap = map.listerThings.AllThings.Where(x => !x.IsForbidden(Faction.OfPlayer)).ToList();
+            // Don't buy more medicine if there's literally heaps in the Hospital already...
+            var itemsOnMap = map.listerThings.AllThings.Where(x => !x.IsForbidden(Faction.OfPlayer) & !x.Position.Fogged(x.Map)).ToList();
             tradeables.ForEach(x => x.thingsColony.ForEach(y => itemsOnMap.Remove(y)));
+            var countsOnMap = itemsOnMap
+                .GroupBy(x => x.def)
+                .ToDictionary(x => x.Key, x => x.ToList().Sum(y => y.stackCount));
 
 #if DEBUG
             performanceTracker.Checkpoint("Extra items");
 #endif
 
-            var pairings = new Dictionary<ThingDef, TradeRule>();
             foreach (var tradeable in tradeables)
             {
                 var junk = tradeable.thingsColony.Where(x =>
@@ -159,7 +209,8 @@ namespace MGAutoSell
 #if DEBUG
             performanceTracker.Checkpoint("Junk");
 #endif
-            foreach (var rule in autoTrade.tradeRules)
+            var pairings = new Dictionary<ThingDef, TradeRule>();
+            foreach (var rule in autoTrade.tradeRules.Where(x => x.Enabled))
             {
                 var items = itemCache
                     .Where(x => !x.IsCurrency && rule.search.AppliesTo(x.AnyThing))
@@ -184,24 +235,24 @@ namespace MGAutoSell
                     return sellOrder;
                 });
 
-                foreach ((var tradeable, var count) in sellOrders)
+                foreach (var (tradeable, count) in sellOrders)
                 {
                     if(sellDictionary.TryAdd(tradeable, count))
                         continue;
 
                     sellDictionary[tradeable] += count;
                 }
-
                 var toBuy =
                     rule.AllowBuy
                         ? items
                             .Where(x =>
                                 rule.BuyWhenBelow == 0
-                                    ? GetCount(rule, x.ThingDef) < rule.BuyUpTo
-                                    : GetCount(rule, x.ThingDef) < rule.BuyWhenBelow)
+                                    ? GetCount(rule, x.ThingDef) + countsOnMap.TryGetValue(x.ThingDef, 0) < rule.BuyUpTo
+                                    : GetCount(rule, x.ThingDef) + countsOnMap.TryGetValue(x.ThingDef, 0) < rule.BuyWhenBelow)
                             .ToList()
                         : [];
                 toBuy.ForEach(x => itemCache.Remove(x.Tradeable));
+
 
                 var buyOrders = toBuy.Select(x =>
                 {
@@ -210,7 +261,7 @@ namespace MGAutoSell
                     return buyOrder;
                 });
 
-                foreach ((var tradeable, var count) in buyOrders)
+                foreach (var (tradeable, count) in buyOrders)
                 {
                     if (buyDictionary.TryAdd(tradeable, count))
                         continue;

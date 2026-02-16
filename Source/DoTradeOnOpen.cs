@@ -22,20 +22,15 @@ namespace MGAutoSell
                 if (deal == null) return;
 
                 TradeDealProcessor.DoTradeDeal(deal);
-                
             }
             catch (Exception ex)
             {
-                Log.Error($"[BuyEverythingOnOpen] Failed to auto-select tradeables: {ex}");
+                Log.Error($"Failed to process Trade UI: {ex}");
             }
         }
 
         
     }
-
-    public record TradeEntry(Tradeable Tradeable, ThingDef ThingDef, int ColonyCount, int TraderCount);
-
-
 }
 
 namespace System.Runtime.CompilerServices
