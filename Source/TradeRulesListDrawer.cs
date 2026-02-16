@@ -37,30 +37,41 @@ namespace MGAutoSell
 
         public override void DrawExtraRowRect(Rect rowRect, TradeRule item, int i)
         {
+            var color = GUI.color;
+            var fadedColor = new Color(1, 1, 1, 0.4f);
+
             if (item == _parent.SelectedTradeRule)
                 Widgets.DrawHighlightSelected(rowRect);
 
-            var rowBuy = new WidgetRow(rowRect.xMax, rowRect.y, UIDirection.LeftThenDown);
+            var rowSell = new WidgetRow(rowRect.xMax, rowRect.y, UIDirection.LeftThenDown);
 
             var alignment = Text.CurTextFieldStyle.alignment;
             Text.CurTextFieldStyle.alignment = TextAnchor.MiddleCenter;
-
-            var buyUpToRect = rowBuy.GetRect(60);
-            buyUpToRect.height -= 4;
-            buyUpToRect.y += 3;
-
-            string buyUpToBuffer = null;
-            Widgets.TextFieldNumeric(buyUpToRect, ref item.BuyUpTo, ref buyUpToBuffer);
-
-            var rowSellRect = rowRect.RightHalf();
-            var rowSell = new WidgetRow(rowSellRect.x, rowSellRect.y, UIDirection.RightThenDown);
 
             var sellDownToRect = rowSell.GetRect(60);
             sellDownToRect.height -= 4;
             sellDownToRect.y += 3;
 
             string sellDownToBuffer = null;
+            if (!item.AllowSell)
+                GUI.color = fadedColor;
             Widgets.TextFieldNumeric(sellDownToRect, ref item.SellDownTo, ref sellDownToBuffer);
+            GUI.color = color;
+
+            var rowBuyRect1 = rowRect.RightHalf();
+            var rowBuy1 = new WidgetRow(rowBuyRect1.x + 20, rowBuyRect1.y, UIDirection.RightThenDown);
+
+            var buyUpToRect1 = rowBuy1.GetRect(60);
+            buyUpToRect1.height -= 4;
+            buyUpToRect1.y += 3;
+
+            string buyUpToBuffer1 = null;
+            if (!item.AllowBuy)
+            {
+                GUI.color = fadedColor;
+            }
+            Widgets.TextFieldNumeric(buyUpToRect1, ref item.BuyUpTo, ref buyUpToBuffer1);
+            GUI.color = color;
             Text.CurTextFieldStyle.alignment = alignment;
         }
 

@@ -11,10 +11,12 @@ using RimWorld;
 using TD_Find_Lib;
 using UnityEngine;
 using Verse;
+using Verse.Noise;
 using static HarmonyLib.Code;
 
 namespace MGAutoSell
 {
+    public record ItemsToSell(List<SellEntry> Items, float TotalSilver, string TraderName, Texture TraderIcon, string TraderImprovement);
     public class MainTabWindow_FindAndAutoSell : MainTabWindow
     {
         private TradeRulesListDrawer drawer;
@@ -23,8 +25,7 @@ namespace MGAutoSell
         private TradeRulesGameComp comp;
         private TradeRuleEditor editor;
 
-        private List<SellEntry> sellEntries = new();
-        private float totalSellEntryPrice = 0;
+        private ItemsToSell sellCache;
         private long nextCache = 0;
         private long nextQuickCache = 0;
 
@@ -54,24 +55,23 @@ namespace MGAutoSell
         }
 
         Vector2 listerScroll = Vector2.zero;
-        private static string buyLabel = "Buy Up To", sellLabel = "Minimum to keep";
-        Vector2? BuyingSize, SellingSize ;
+        private static string buyLabel = "Minimum", sellLabel = "Maximum";
+        Vector2? SellingSize, BuyingSize;
         private long previousRenderTime = 0;
         public override void DoWindowContents(Rect inRect)
         {
+            var timestamp = Stopwatch.GetTimestamp();
             var color = GUI.color;
+            var fadedColor = new Color(1, 1, 1, 0.4f);
             var font = Text.Font;
             Text.Font = GameFont.Small;
             BuyingSize ??= Text.CalcSize(buyLabel);
             SellingSize ??= Text.CalcSize(sellLabel);
-            var buyingSize = BuyingSize.Value;
             var sellingSize = SellingSize.Value;
+            var buyingSize = BuyingSize.Value;
 
-            var timestamp = Stopwatch.GetTimestamp();
 
             var width = editor != null ? 600f : 400f;
-
-            
 
             var rulesRect = inRect.LeftPartPixels(width);
 
@@ -93,7 +93,7 @@ namespace MGAutoSell
                 inRect.y -= 4;
                 Text.Font = GameFont.Medium;
                 GUI.color = new Color(1, 1, 1, 0.4f);
-                Widgets.Label(inRect, "<i>Find / Auto Sell</i>");
+                Widgets.Label(inRect, $"<i>Find / Auto Sell {previousRenderTime}</i>");
                 Text.Font = GameFont.Small;
                 GUI.color = color;
                 inRect.y += 4;
@@ -104,9 +104,10 @@ namespace MGAutoSell
 
                 var middle = 30;
                 var left = header.RightHalf();
-                left.x += middle - sellingSize.x / 2;
-                Widgets.Label(left, sellLabel);
-                Widgets.Label(header.RightPartPixels(Math.Max(middle + buyingSize.x / 2, buyingSize.x)), buyLabel);
+                left.x += middle - buyingSize.x / 2 + 20;
+                Widgets.Label(left, buyLabel);
+                var sellLabelRect = header.RightPartPixels(Math.Max(middle + sellingSize.x / 2, sellingSize.x));
+                Widgets.Label(sellLabelRect, sellLabel);
 
                 var drawerListing = new Listing_StandardIndent();
                 drawerListing.BeginScrollView(body, ref listerScroll, body.LeftPartPixels(body.width - 16).TopPartPixels(comp.tradeRules.Count * 30).AtZero());
@@ -123,13 +124,12 @@ namespace MGAutoSell
             var toSellRect = inRect.RightPartPixels(inRect.width - rulesRect.width - 12 - 16);
             toSellRect.x -= 16;
 
-            GUI.color = new Color(1, 1, 1, 0.4f);
+            GUI.color = fadedColor;
             Widgets.DrawLineVertical(rulesRect.width + 6, 0, 300f);
             GUI.color = color;
 
             CacheItemsToSell();
 
-            int i = 0;
             toSellRect.SplitHorizontally(Text.LineHeight, out var itemHeader, out toSellRect);
 
             Widgets.DrawLightHighlight(itemHeader);
@@ -138,9 +138,10 @@ namespace MGAutoSell
             GUI.DrawTexture(itemHeader.RightPartPixels(24f), ThingDefOf.Silver.uiIcon);
 
             toSellRect.SplitHorizontally(4, out var gapHeader, out toSellRect);
-            Widgets.DrawLineHorizontal(gapHeader.x, gapHeader.y, gapHeader.width, new Color(1, 1, 1, 0.4f));
+            Widgets.DrawLineHorizontal(gapHeader.x, gapHeader.y, gapHeader.width, fadedColor);
 
-            foreach (var (thingDef, count, total) in sellEntries)
+            int i = 0;
+            foreach (var (thingDef, count, total) in sellCache.Items)
             {
                 toSellRect.SplitHorizontally(30f, out var row, out toSellRect);
 
@@ -159,12 +160,18 @@ namespace MGAutoSell
 
             var footer = toSellRect.BottomPartPixels(Text.LineHeight);
             Widgets.DrawLightHighlight(footer);
-            Widgets.Label(footer, "Total:");
+            var iconRect = footer.LeftPartPixels(Text.LineHeight);
+            iconRect.y -= 4;
+            GUI.DrawTexture(iconRect, sellCache.TraderIcon);
+            //TradeSession.playerNegotiator.GetStatValue(StatDefOf.TradePriceImprovement).ToStringPercent()
+            Widgets.Label(footer.RightPartPixels(footer.width - Text.LineHeight), sellCache.TraderName + " - " + sellCache.TraderImprovement);
 
             var footerRow = new WidgetRow(footer.xMax - 4, footer.y, UIDirection.LeftThenDown);
-            footerRow.Label(totalSellEntryPrice.ToStringSafe());
+            footerRow.Label(sellCache.TotalSilver.ToStringSafe());
             footerRow.Icon(ThingDefOf.Silver.uiIcon);
+            footerRow.Label("Total:");
             Text.Font = font;
+            previousRenderTime = Stopwatch.GetTimestamp() - timestamp;
         }
 
         public void DoWindowContentsOld(Rect inRect)
@@ -195,9 +202,9 @@ namespace MGAutoSell
 
             var middle = 30;
             var left = header.RightHalf().LeftHalf();
-            left.x += middle - (SellingSize.Value.x / 2);
+            left.x += middle - (BuyingSize.Value.x / 2);
             Widgets.Label(left, sellLabel);
-            Widgets.Label(header.RightPartPixels(Math.Max(middle + BuyingSize.Value.x / 2, BuyingSize.Value.x)), buyLabel);
+            Widgets.Label(header.RightPartPixels(Math.Max(middle + SellingSize.Value.x / 2, SellingSize.Value.x)), buyLabel);
 
             drawerListing.BeginScrollView(body, ref listerScroll, body.LeftPartPixels(body.width - 16).TopPartPixels(comp.tradeRules.Count * 30).AtZero());
             drawer.DrawQuerySearchList(drawerListing);
@@ -217,7 +224,7 @@ namespace MGAutoSell
             CacheItemsToSell();
 
             int i = 0;
-            foreach (var (thingDef, count, total) in sellEntries)
+            foreach (var (thingDef, count, total) in sellCache.Items)
             {
                 toSellRect.SplitHorizontally(30f, out var row, out toSellRect);
 
@@ -236,11 +243,12 @@ namespace MGAutoSell
 
             var footer = toSellRect.BottomPartPixels(Text.LineHeight);
             Widgets.DrawLightHighlight(footer);
-            Widgets.Label(footer, "Total:");
+            
 
             var footerRow = new WidgetRow(footer.xMax - 4, footer.y, UIDirection.LeftThenDown);
-            footerRow.Label(totalSellEntryPrice.ToStringSafe());
+            footerRow.Label(sellCache.TotalSilver.ToStringSafe());
             footerRow.Icon(ThingDefOf.Silver.uiIcon);
+            footerRow.Label("Total:");
 
             listing.End();
             previousRenderTime = Stopwatch.GetTimestamp() - timestamp;
@@ -288,8 +296,8 @@ namespace MGAutoSell
             }
 
             var stat = StatDefOf.TradePriceImprovement;
-            var socialPawn = Find.CurrentMap.mapPawns.PawnsInFaction(Faction.OfPlayer)
-                .Where(x => !stat.Worker.IsDisabledFor(x))
+            var socialPawn = Find.CurrentMap.mapPawns.FreeColonists
+                .Where(x => x.RaceProps.Humanlike && !stat.Worker.IsDisabledFor(x))
                 .MaxBy(x => x.GetStatValue(stat));
 
             var traderPriceType = PriceType.Normal.PriceMultiplier();
@@ -298,7 +306,7 @@ namespace MGAutoSell
             var drugBonus = socialPawn.GetStatValue(StatDefOf.DrugSellPriceImprovement);
             var animalProduceBonus = socialPawn.GetStatValue(StatDefOf.AnimalProductsSellImprovement);
             thingDictionary.RemoveAll(x => !x.Value.Any());
-            sellEntries = thingDictionary.Select(x =>
+            var sellEntries = thingDictionary.Select(x =>
             {
                 var (thingDef, items) = x;
                 var humanPawn = items.FirstOrDefault() is Pawn pawn && pawn.RaceProps.Humanlike ? 0.6f : 1f;
@@ -319,7 +327,8 @@ namespace MGAutoSell
             .OrderByDescending(x => x.Total)
             .ToList();
 
-            totalSellEntryPrice = (float)Math.Round(sellEntries.Sum(x => x.Total), 0);
+            sellCache = new ItemsToSell(sellEntries, (float)Math.Round(sellEntries.Sum(x => x.Total), 0),
+                socialPawn.LabelShort, PortraitsCache.Get(socialPawn, new Vector2(24, 24), Rot4.South, ColonistBarColonistDrawer.PawnTextureCameraOffset, 1.28205f), playerNegotiator.ToStringPercent());
 
             nextCache = Find.TickManager.TicksGame + 3600;
             nextQuickCache = DateTime.UtcNow.AddSeconds(1).Ticks;
