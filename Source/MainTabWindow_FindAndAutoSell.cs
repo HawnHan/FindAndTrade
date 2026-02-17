@@ -152,16 +152,16 @@ namespace MGAutoSell
             int i = 0;
             foreach (var (thingDef, count, total, _) in sellCache.Items)
             {
-                toSellRect.SplitHorizontally(30f, out var row, out toSellRect);
+                toSellRect.SplitHorizontally(Text.LineHeight, out var row, out toSellRect);
 
                 if (i % 2 == 1)
                     Widgets.DrawLightHighlight(row);
                 i++;
 
-                GUI.DrawTexture(row.LeftPartPixels(30), thingDef.uiIcon);
-                row.x += 40;
+                GUI.DrawTexture(row.LeftPartPixels(row.height), thingDef.uiIcon);
+                row.x += row.height + 10;
                 Widgets.Label(row, thingDef.GetLabel() + $" x{count}");
-                row.x -= 40;
+                row.x -= row.height + 10;
                 var totalLabel = total.ToStringMoney();
                 var size = Text.CalcSize(totalLabel);
                 Widgets.Label(row.RightPartPixels(size.x + 4), totalLabel);
@@ -284,7 +284,7 @@ namespace MGAutoSell
             thingDictionary.AddRange(junkGrouped.ToDictionary(x => x.Key,
                 x => x.ToList()));
 
-            foreach (var rule in comp.tradeRules.Where(x => x.Enabled && x.AllowSell && x.search.Children.queries.Any()))
+            foreach (var rule in comp.tradeRules.Where(x => x is { Enabled: true, AllowSell: true } && x.search.Children.queries.Any()))
             {
                 var items = allItems.Where(x => rule.search.AppliesTo(x)).ToList();
                 ruleDictionary[rule] = items;
@@ -302,7 +302,7 @@ namespace MGAutoSell
                     if(!thingDictionary.TryAdd(thingDef, list))
                         thingDictionary[thingDef].AddRange(list);
 
-                    sellDictionary.Add(thingDef, rule.SellDownTo);
+                    sellDictionary.TryAdd(thingDef, rule.SellDownTo);
                 }
             }
 
@@ -354,7 +354,6 @@ namespace MGAutoSell
 
             var duration = Stopwatch.GetTimestamp() - timestamp;
             Log.Message($"Generated list in {duration}ts");
-            comp.tradeRules.ForEach(x => x.search.changed = false);
         }
 
         public TradeRule SelectedTradeRule;

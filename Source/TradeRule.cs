@@ -21,6 +21,7 @@ namespace MGAutoSell
         public bool AllowBuy => BuyUpTo > 0;
 
         public bool NoConfig => SellDownTo == 0 && BuyUpTo == 0;
+        public bool Invalid => (SellDownTo > 0 && BuyUpTo > 0 && BuyUpTo > SellDownTo) || BuyUpTo < 0 || SellDownTo < 0;
 
         public void ExposeData()
         {

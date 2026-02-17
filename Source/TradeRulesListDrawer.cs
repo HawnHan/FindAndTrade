@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using TD_Find_Lib;
+using Unity.Mathematics;
 using UnityEngine;
 using Verse;
 
@@ -16,6 +17,12 @@ namespace MGAutoSell
         private TradeRulesGameComp comp;
 
         private Color altBackground = new(0.3f, 0.3f, 0.3f, 0.5f);
+
+        private static readonly Color
+            DeepRed = new(1f, 0.0f, 0.0f, 0.6f),
+            DeepGreen = new(0.0f, 1f, 0.0f, 0.6f);
+
+        private static readonly string ruleInvalid = "MGAutoSell.RuleInvalid".Translate();
 
         public TradeRulesListDrawer(TradeRulesGroup list, MainTabWindow_FindAndAutoSell parent) : base(list)
         {
@@ -38,8 +45,13 @@ namespace MGAutoSell
 
         public override void DrawExtraRowRect(Rect rowRect, TradeRule item, int i)
         {
-            var color = GUI.color;
+            var second = DateTimeOffset.Now.ToUnixTimeSeconds();
+            var original = GUI.color;
+            var font = Text.Font;
             var fadedColor = new Color(1, 1, 1, 0.4f);
+            var lightFadedColor = new Color(1, 1, 1, 0.6f);
+            var invalid = item.Invalid;
+
 
             if (item == _parent.SelectedTradeRule)
                 Widgets.DrawHighlightSelected(rowRect);
@@ -55,27 +67,21 @@ namespace MGAutoSell
 
             var prevSellDown = item.SellDownTo;
             string sellDownToBuffer = null;
-            if (!item.AllowSell)
+            if (invalid)
+                GUI.color = DeepRed;
+            else if (!item.AllowSell)
                 GUI.color = fadedColor;
             Widgets.TextFieldNumeric(sellDownToRect, ref item.SellDownTo, ref sellDownToBuffer);
             if (string.IsNullOrWhiteSpace(sellDownToBuffer))
                 item.SellDownTo = 0;
-            GUI.color = color;
+            GUI.color = original;
             if (item.SellDownTo != prevSellDown)
                 item.search.changed = true;
 
             var rowBuyRect = rowRect.RightHalf();
+            if(invalid)
+                TooltipHandler.TipRegion(rowBuyRect, () => ruleInvalid, 6320498 + i);
             rowBuyRect = rowBuyRect.RightPartPixels(rowBuyRect.width - 20);
-
-            if ((_parent.sellCache?.Rules?.TryGetValue(item, out var entry) ?? false) && entry.Any())
-            {
-                var iconRect = rowBuyRect.MiddlePartPixels(Text.LineHeight, Text.LineHeight);
-                GUI.color = fadedColor;
-                var length = entry.Count;
-                var index = (int)(DateTimeOffset.Now.ToUnixTimeSeconds() % length);
-                GUI.DrawTexture(iconRect, entry[index].Item.uiIcon);
-                GUI.color = color;
-            }
 
             var rowBuy = new WidgetRow(rowBuyRect.x, rowBuyRect.y, UIDirection.RightThenDown);
 
@@ -84,14 +90,63 @@ namespace MGAutoSell
             buyUpToRect.y += 3;
 
             string buyUpToBuffer = null;
-            if (!item.AllowBuy)
-            {
+            if (invalid)
+                GUI.color = DeepRed;
+            else if (!item.AllowBuy) 
                 GUI.color = fadedColor;
-            }
             Widgets.TextFieldNumeric(buyUpToRect, ref item.BuyUpTo, ref buyUpToBuffer);
-            if(string.IsNullOrWhiteSpace(buyUpToBuffer))
+            if (string.IsNullOrWhiteSpace(buyUpToBuffer))
                 item.BuyUpTo = 0;
-            GUI.color = color;
+            GUI.color = original;
+
+            if ((_parent.sellCache?.Rules?.TryGetValue(item, out var entry) ?? false) && entry.Any())
+            {
+                var outer = rowBuyRect.MiddlePartPixels(rowBuyRect.width - 120, rowBuyRect.height);
+                var iconRect = outer.MiddlePartPixels(Text.LineHeight, Text.LineHeight);
+                GUI.color = fadedColor;
+                var length = entry.Count;
+                var index = (int)(second % length);
+
+                var ruleRecord = entry[index];
+
+                GUI.DrawTexture(iconRect, ruleRecord.Item.uiIcon);
+                GUI.color = original;
+
+                var countLabel = $"x{(ruleRecord.Count >= 1000 
+                    ? (int)Math.Round(ruleRecord.Count / 1000f, 0) + "k" 
+                    : ruleRecord.Count.ToString())}";
+                Text.Font = GameFont.Tiny;
+
+                float spread;
+                if (invalid)
+                    spread = 0;
+                else if (item.AllowSell && item.SellDownTo == 0)
+                    spread = 1;
+                else if (item.AllowBuy && !item.AllowSell)
+                    spread = -1;
+                else
+                    spread = ruleRecord.Count switch
+                    {
+                        var v when v < item.SellDownTo && v > item.BuyUpTo => 0,
+                        var v when v > item.SellDownTo => Math.Abs((ruleRecord.Count - (float)item.SellDownTo) / Math.Max(item.SellDownTo, 1f)),
+                        var v when v < item.BuyUpTo => -Math.Abs((ruleRecord.Count - item.BuyUpTo / 2f) / Math.Max(item.BuyUpTo, 1f))
+                    };
+
+                GUI.color = spread == 0
+                    ? fadedColor
+                    : Color.Lerp(fadedColor, spread > 0 ? DeepGreen : DeepRed, 
+                        math.clamp(Math.Abs(spread), 0.25f, 1f));
+
+                var labelSize = Text.CalcSize(countLabel);
+
+                var labelRect = outer.RightPartPixels(labelSize.x).BottomPartPixels(labelSize.y);
+
+                Widgets.Label(labelRect, countLabel);
+                GUI.color = original;
+                Text.Font = font;
+            }
+
+            
             Text.CurTextFieldStyle.alignment = alignment;
         }
 

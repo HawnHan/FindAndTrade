@@ -213,18 +213,19 @@ namespace MGAutoSell
                     continue;
 
                 var total = junk.Sum(x => x.stackCount);
-                AddCount(null, tradeable.ThingDef, total);
+                AddCount(null, tradeable.ThingDef, -total);
                 sellDictionary[tradeable] = total;
             }
-
+            itemCache.RemoveAll(x => !x.thingsColony.Any() && !x.thingsTrader.Any());
 #if DEBUG
             performanceTracker.Checkpoint("Junk");
 #endif
             var pairings = new Dictionary<ThingDef, TradeRule>();
             foreach (var rule in autoTrade.tradeRules.Where(x => x.Enabled && x.search.Children.queries.Any()))
             {
+                Log.Message($"Processing rule {rule.search.name}");
                 var items = itemCache
-                    .Where(x => !x.IsCurrency && rule.search.AppliesTo(x.AnyThing))
+                    .Where(x => !x.IsCurrency && x.AnyThingNotJunk(out var thing) && rule.search.AppliesTo(thing))
                     .Select(x => new TradeEntry(x, x.ThingDef, x.CountHeldBy(Transactor.Colony), x.CountHeldBy(Transactor.Trader)))
                     .ToList();
 
@@ -235,13 +236,13 @@ namespace MGAutoSell
                 {
                     items.Remove(x);
                     itemCache.Remove(x.Tradeable);
-                    pairings.Add(x.ThingDef, rule);
+                    pairings.TryAdd(x.ThingDef, rule);
                 });
 
                 var sellOrders = toSell.Select(x =>
                 {
                     var sellOrder = (x.Tradeable,
-                        Math.Max(GetCount(rule, x.ThingDef) - rule.SellDownTo, x.ColonyCount));
+                        Math.Min(GetCount(rule, x.ThingDef) - rule.SellDownTo, x.ColonyCount));
                     AddCount(rule, x.ThingDef, -sellOrder.Item2);
                     return sellOrder;
                 });
