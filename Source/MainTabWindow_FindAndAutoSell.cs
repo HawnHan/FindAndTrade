@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -19,7 +20,7 @@ using static HarmonyLib.Code;
 namespace MGAutoSell
 {
     public record ItemsToSell(List<SellRecord> Items, float TotalSilver, TraderRecord Trader, Dictionary<TradeRule, List<RuleRecord>> Rules);
-    public record SellRecord(ThingDef Item, int Count, float Total, string PricePer);
+    public record SellRecord(ThingDef Item, int Count, float Total, string PricePerLabel, string TotalLabel);
     public record TraderRecord(string Name, Texture Icon, string Improvement);
     public record RuleRecord(ThingDef Item, int Count);
     public class MainTabWindow_FindAndAutoSell : MainTabWindow
@@ -46,6 +47,8 @@ namespace MGAutoSell
         public override Vector2 RequestedTabSize => new(1010f, 300f);
         protected override float Margin => 8f;
         public bool SellListDirty => editor != null;
+        private int reorderID;
+        private int reorderRectHeight;
 
         public MainTabWindow_FindAndAutoSell()
         {
@@ -122,10 +125,16 @@ namespace MGAutoSell
                 GUI.color = color;
                 var drawerListing = new Listing_StandardIndent();
                 drawerListing.BeginScrollView(body, ref listerScroll, body.LeftPartPixels(body.width - 16).TopPartPixels(comp.tradeRules.Count * 30).AtZero());
+                if (Event.current.type == EventType.Repaint)
+                    reorderID = ReorderableWidget.NewGroup(DoReorderSearch, ReorderableDirection.Vertical,
+                        new Rect(0.0f, -30, drawerListing.ColumnWidth, height + 30), 1f,
+                        (index, _) =>
+                            DrawMouseAttachedQuerySearch(comp.tradeRules[index].Search, drawerListing.ColumnWidth));
+
                 for (var index = 0; index < comp.tradeRules.Count; index++)
                 {
                     var tradeRule = comp.tradeRules[index];
-                    var action = TradeRuleDrawUtility.DrawRow(drawerListing.GetRect(30), tradeRule, index, sellCache);
+                    var action = TradeRuleDrawUtility.DrawRow(drawerListing.GetRect(30), tradeRule, index, sellCache, reorderID);
                     switch (action)
                     {
                         case TradeRuleAction.None:
@@ -147,7 +156,7 @@ namespace MGAutoSell
                             throw new ArgumentOutOfRangeException();
                     }
                 }
-
+                
                 drawerListing.EndScrollView(ref height);
 
                 var controlsRect = rulesRect.BottomPartPixels(Text.LineHeight);
@@ -175,14 +184,15 @@ namespace MGAutoSell
 
             Widgets.DrawLightHighlight(itemHeader);
 
-            Widgets.Label(itemHeader.RightPartPixels(itemHeader.width - 40f), "Item");
+            Widgets.Label(itemHeader.RightPartPixels(itemHeader.width - Text.LineHeight - 10), "Items to Sell");
             GUI.DrawTexture(itemHeader.RightPartPixels(24f), ThingDefOf.Silver.uiIcon);
 
             toSellRect.SplitHorizontally(4, out var gapHeader, out toSellRect);
             Widgets.DrawLineHorizontal(gapHeader.x, gapHeader.y, gapHeader.width, fadedColor);
 
             int i = 0;
-            foreach (var (thingDef, count, total, _) in sellCache.Items)
+            var anchor = Text.Anchor;
+            foreach (var (thingDef, count, total, pricePerLabel, totalLabel) in sellCache.Items)
             {
                 toSellRect.SplitHorizontally(Text.LineHeight, out var row, out toSellRect);
 
@@ -195,10 +205,14 @@ namespace MGAutoSell
                 GUI.color = color;
 
                 row.x += row.height + 10;
-                Widgets.Label(row, thingDef.GetLabel() + $" x{count}");
+                Widgets.Label(row, thingDef.GetLabel() + $"x{count}");
                 row.x -= row.height + 10;
 
-                var totalLabel = total.ToStringMoney();
+                var middle = row.MiddlePartPixels(50, row.height);
+                Text.Anchor = TextAnchor.MiddleCenter;
+                Widgets.Label(middle, pricePerLabel);
+                Text.Anchor = anchor;
+
                 var size = Text.CalcSize(totalLabel);
                 Widgets.Label(row.RightPartPixels(size.x + 4), totalLabel);
             }
@@ -261,7 +275,7 @@ namespace MGAutoSell
                     if(!thingDictionary.TryAdd(thingDef, list))
                         thingDictionary[thingDef].AddRange(list);
 
-                    sellDictionary.TryAdd(thingDef, rule.SellDownTo);
+                    sellDictionary.TryAdd(thingDef, rule.Export);
                 }
             }
 
@@ -291,7 +305,13 @@ namespace MGAutoSell
                 priceTotal -= pricePer * sellDown;
                 itemsTotal -= sellDown;
 
-                return new SellRecord(thingDef, itemsTotal, (float)Math.Round(priceTotal, 0), (priceTotal/itemsTotal).ToStringMoney());
+                var total = (float)Math.Round(priceTotal, 0);
+
+                var pricePerLabel = (priceTotal / itemsTotal).ToStringMoney();
+                var totalLabel = total.ToStringMoney();
+
+
+                return new SellRecord(thingDef, itemsTotal, total, pricePerLabel, totalLabel);
             })
             .Where(x => x != null)
             .OrderByDescending(x => x.Total)
@@ -299,12 +319,17 @@ namespace MGAutoSell
 
 
             // TODO Hmmm ok, this is too dense...
-            sellCache = new ItemsToSell(sellEntries, (float)Math.Round(sellEntries.Sum(x => x.Total), 0),
-                new TraderRecord(socialPawn.Name.ToStringFull,
-                    PortraitsCache.Get(socialPawn, new Vector2(24, 24), Rot4.South,
-                        ColonistBarColonistDrawer.PawnTextureCameraOffset, 1.28205f),
+            sellCache = new ItemsToSell(
+                Items: sellEntries,
+
+                TotalSilver: (float)Math.Round(sellEntries.Sum(x => x.Total), 0),
+
+                Trader: new TraderRecord(
+                    socialPawn.Name.ToStringFull,
+                    PortraitsCache.Get(socialPawn, new Vector2(24, 24), Rot4.South, ColonistBarColonistDrawer.PawnTextureCameraOffset, 1.28205f),
                     playerNegotiator.ToStringPercent()),
-                ruleDictionary.ToDictionary(x => x.Key,
+
+                Rules: ruleDictionary.ToDictionary(x => x.Key,
                     x => x.Value.GroupBy(y => y.def)
                         .Select(y => new RuleRecord(y.Key, y.ToList().Sum(z => z.stackCount))).ToList()));
 
@@ -364,6 +389,18 @@ namespace MGAutoSell
                 // Even
                 return (sorted[(count / 2) - 1] + sorted[count / 2]) / 2f;
             }
+        }
+
+        private protected virtual void DoReorderSearch(int from, int to)
+        {
+            var obj = comp.tradeRules[from];
+            comp.tradeRules.RemoveAt(from);
+            comp.tradeRules.Insert(from < to ? to - 1 : to, obj);
+        }
+
+        public static void DrawMouseAttachedQuerySearch(QuerySearch search, float width)
+        {
+            Find.WindowStack.ImmediateWindow(34003428, new Rect(Event.current.mousePosition + Vector2.one * 12f, new Vector2(width, Text.LineHeight)), WindowLayer.Super, (Action)(() => Widgets.Label(new Rect(0.0f, 0.0f, width, Text.LineHeight), search.name)), false, shadowAlpha: 0.0f);
         }
     }
 

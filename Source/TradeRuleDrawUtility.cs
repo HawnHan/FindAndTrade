@@ -38,19 +38,16 @@ namespace MGAutoSell
             Disabled = new Color(1, 0, 0, 0.4f);
         }
 
-        public static TradeRuleAction DrawRow(Rect rowRect, TradeRule item, int i, ItemsToSell sellCache)
+        public static TradeRuleAction DrawRow(Rect rowRect, TradeRule item, int i, ItemsToSell sellCache, int reorderId)
         {
             var response = TradeRuleAction.None;
             var ruleDisabled = !item.Enabled;
             var OGColor = GUI.color;
             var OGAnchor = Text.Anchor;
             var OGFieldAlignment = Text.CurTextFieldStyle.alignment;
-
             Text.CurTextFieldStyle.alignment = TextAnchor.MiddleCenter;
-
             if (i % 2 == 1)
                 Widgets.DrawLightHighlight(rowRect);
-
             if (ruleDisabled)
                 Widgets.DrawBoxSolid(rowRect, Disabled);
 
@@ -71,17 +68,18 @@ namespace MGAutoSell
                 response = TradeRuleAction.Edit;
 
 
-            if (DrawGreyscaleIconButton(right.GetRect(24), TexButton.Suspend))
-                //if (right.ButtonIcon(TexButton.Suspend))
+            if (DrawGreyscaleIconButton(right.GetRect(24)))
                 response = TradeRuleAction.Suspend;
 
 
             if (item.Mode is TradeMode.Export or TradeMode.Maintain)
             {
-                string exportBuffer = null;
-                right.TextFieldNumeric<int>(ref item.SellDownTo, ref exportBuffer, BoxSize);
-                if (string.IsNullOrWhiteSpace(exportBuffer))
-                    item.SellDownTo = 0;
+                right.TextFieldNumeric<int>(ref item.Export, ref item.ExportBuffer, BoxSize);
+                if (string.IsNullOrWhiteSpace(item.ExportBuffer))
+                {
+                    item.Export = 0;
+                    item.ExportBuffer = "0";
+                }
             }
             else
                 right.Gap(BoxSize + AnnoyingUnavoidableGap);
@@ -112,18 +110,21 @@ namespace MGAutoSell
             if (Mouse.IsOver(rect))
             {
                 Widgets.DrawHighlight(rect);
-                if (DoClickWithoutBlocking(rect, item.search.lastRemakeTick))
-                    response = TradeRuleAction.Mode;
             }
+            if (DoClickWithoutBlocking(rect, item.Hash))
+                response = TradeRuleAction.Mode;
 
             GUI.color = OGColor;
 
             if (item.Mode is TradeMode.Import or TradeMode.Maintain)
             {
                 string importBuffer = null;
-                right.TextFieldNumeric<int>(ref item.BuyUpTo, ref importBuffer, BoxSize);
-                if (string.IsNullOrWhiteSpace(importBuffer))
-                    item.BuyUpTo = 0;
+                right.TextFieldNumeric<int>(ref item.Import, ref item.ImportBuffer, BoxSize);
+                if (string.IsNullOrWhiteSpace(item.ImportBuffer))
+                {
+                    item.Import = 0;
+                    item.ImportBuffer = "0";
+                }
             }
             else
                 right.Gap(BoxSize + AnnoyingUnavoidableGap);
@@ -132,6 +133,7 @@ namespace MGAutoSell
             Text.Anchor = OGAnchor;
             Text.CurTextFieldStyle.alignment = OGFieldAlignment;
 
+            ReorderableWidget.Reorderable(reorderId, rowRect);
             return response;
         }
 
@@ -142,8 +144,7 @@ namespace MGAutoSell
             switch (current.type)
             {
                 case EventType.MouseDown:
-                    if (Mouse.IsOver(rect))
-                        mouseEvents.Add(id);
+                    if (Mouse.IsOver(rect)) mouseEvents.Add(id);
                     break;
                 case EventType.MouseUp:
                     if (!mouseEvents.Contains(id))
@@ -152,6 +153,7 @@ namespace MGAutoSell
                     return Mouse.IsOver(rect) && mouseEvents.Remove(id);
 
                 case EventType.MouseMove:
+                case EventType.MouseDrag:
                     if (!mouseEvents.Contains(id))
                         break;
 
@@ -163,23 +165,32 @@ namespace MGAutoSell
             return false;
         }
 
-        private static bool DrawGreyscaleIconButton(Rect rect, Texture2D texture, string tooltip = null, bool doMouseoverSound = true)
+        private static Material grayMat;
+        private static Material grayMatOver;
+        private static readonly int instanceID = TexButton.Suspend.GetInstanceID();
+        private static bool DrawGreyscaleIconButton(Rect rect, string tooltip = null, bool doMouseoverSound = true)
         {
             if (doMouseoverSound)
                 MouseoverSounds.DoRegion(rect);
             var mouseOver = Mouse.IsOver(rect);
 
-            var grayMat = MaterialPool.MatFrom(
+            var texture = TexButton.Suspend;
+
+            grayMat ??= MaterialPool.MatFrom(
                 texture,
                 ShaderDatabase.GrayscaleGUI,
-                mouseOver ? GenUI.MouseoverColor : Color.white
+                Color.white
+            );
+            grayMatOver ??= MaterialPool.MatFrom(
+                texture,
+                ShaderDatabase.GrayscaleGUI,
+                GenUI.MouseoverColor
             );
 
-            grayMat.SetFloat("_Amount", 1f); // if your shader supports it
 
-            Graphics.DrawTexture(rect, texture, grayMat);
+            Graphics.DrawTexture(rect, texture, mouseOver ? grayMatOver : grayMat);
 
-            var clicked = DoClickWithoutBlocking(rect, texture.GetInstanceID());
+            var clicked = DoClickWithoutBlocking(rect, instanceID);
 
             if (tooltip.NullOrEmpty())
                 return clicked;

@@ -65,17 +65,17 @@ namespace MGAutoSell
             sellDownToRect.height -= 4;
             sellDownToRect.y += 3;
 
-            var prevSellDown = item.SellDownTo;
+            var prevSellDown = item.Export;
             string sellDownToBuffer = null;
             if (invalid)
                 GUI.color = DeepRed;
             else if (!item.AllowSell)
                 GUI.color = fadedColor;
-            Widgets.TextFieldNumeric(sellDownToRect, ref item.SellDownTo, ref sellDownToBuffer);
+            Widgets.TextFieldNumeric(sellDownToRect, ref item.Export, ref sellDownToBuffer);
             if (string.IsNullOrWhiteSpace(sellDownToBuffer))
-                item.SellDownTo = 0;
+                item.Export = 0;
             GUI.color = original;
-            if (item.SellDownTo != prevSellDown)
+            if (item.Export != prevSellDown)
                 item.search.changed = true;
 
             var rowBuyRect = rowRect.RightHalf();
@@ -94,9 +94,9 @@ namespace MGAutoSell
                 GUI.color = DeepRed;
             else if (!item.AllowBuy) 
                 GUI.color = fadedColor;
-            Widgets.TextFieldNumeric(buyUpToRect, ref item.BuyUpTo, ref buyUpToBuffer);
+            Widgets.TextFieldNumeric(buyUpToRect, ref item.Import, ref buyUpToBuffer);
             if (string.IsNullOrWhiteSpace(buyUpToBuffer))
-                item.BuyUpTo = 0;
+                item.Import = 0;
             GUI.color = original;
 
             if ((_parent.sellCache?.Rules?.TryGetValue(item, out var entry) ?? false) && entry.Any())
@@ -121,16 +121,16 @@ namespace MGAutoSell
                 float spread;
                 if (invalid)
                     spread = 0;
-                else if (item.AllowSell && item.SellDownTo == 0)
+                else if (item.AllowSell && item.Export == 0)
                     spread = 1;
                 else if (item.AllowBuy && !item.AllowSell)
                     spread = -1;
                 else
                     spread = ruleRecord.Count switch
                     {
-                        var v when v < item.SellDownTo && v > item.BuyUpTo => 0,
-                        var v when v > item.SellDownTo => Math.Abs((ruleRecord.Count - (float)item.SellDownTo) / Math.Max(item.SellDownTo, 1f)),
-                        var v when v < item.BuyUpTo => -Math.Abs((ruleRecord.Count - item.BuyUpTo / 2f) / Math.Max(item.BuyUpTo, 1f))
+                        var v when v < item.Export && v > item.Import => 0,
+                        var v when v > item.Export => Math.Abs((ruleRecord.Count - (float)item.Export) / Math.Max(item.Export, 1f)),
+                        var v when v < item.Import => -Math.Abs((ruleRecord.Count - item.Import / 2f) / Math.Max(item.Import, 1f))
                     };
 
                 GUI.color = spread == 0

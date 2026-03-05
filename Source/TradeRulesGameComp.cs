@@ -8,10 +8,16 @@ using Verse;
 
 namespace MGAutoSell
 {
-    public class TradeRulesGameComp(Game game) : GameComponent
+    public class TradeRulesGameComp : GameComponent
     {
         public TradeRulesGroup tradeRules = new();
         public HashSet<ITrader> traders = new();
+
+        public TradeRulesGameComp(Game game)
+        {
+            tradeRules ??= new();
+            traders ??= new();
+        }
 
         public override void ExposeData()
         {

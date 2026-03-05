@@ -295,7 +295,7 @@ namespace MGAutoSell
                     .ToList();
 
                 var toSell = rule.AllowSell
-                    ? items.Where(x => GetCount(rule, x.ThingDef) > rule.SellDownTo).ToList()
+                    ? items.Where(x => GetCount(rule, x.ThingDef) > rule.Export).ToList()
                     : [];
                 toSell.ForEach(x =>
                 {
@@ -307,7 +307,7 @@ namespace MGAutoSell
                 var sellOrders = toSell.Select(x =>
                 {
                     var sellOrder = (x.Tradeable,
-                        Math.Min(GetCount(rule, x.ThingDef) - rule.SellDownTo, x.ColonyCount));
+                        Math.Min(GetCount(rule, x.ThingDef) - rule.Export, x.ColonyCount));
                     AddCount(rule, x.ThingDef, -sellOrder.Item2);
                     return sellOrder;
                 }).ToList();
@@ -325,7 +325,7 @@ namespace MGAutoSell
                     rule.AllowBuy
                         ? items
                             .Where(x =>
-                                GetCount(rule, x.ThingDef) + countsOnMap.TryGetValue(x.ThingDef, 0) < rule.BuyUpTo)
+                                GetCount(rule, x.ThingDef) + countsOnMap.TryGetValue(x.ThingDef, 0) < rule.Import)
                             .ToList()
                         : [];
                 toBuy.ForEach(x => itemCache.Remove(x.Tradeable));
@@ -333,7 +333,7 @@ namespace MGAutoSell
 
                 var buyOrders = toBuy.Select(x =>
                 {
-                    var buyOrder = (x.Tradeable, Math.Min(rule.BuyUpTo - GetCount(rule, x.ThingDef), x.TraderCount));
+                    var buyOrder = (x.Tradeable, Math.Min(rule.Import - GetCount(rule, x.ThingDef), x.TraderCount));
                     AddCount(rule, x.ThingDef, buyOrder.Item2);
                     return buyOrder;
                 }).ToList();
