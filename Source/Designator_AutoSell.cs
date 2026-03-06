@@ -24,7 +24,7 @@ namespace MGAutoSell
             defaultLabel = "Sell";
             useMouseIcon = true;
             soundSucceeded = SoundDefOf.Designate_Haul;
-            icon = ContentFinder<Texture2D>.Get("RecycleThisGizmo");
+            icon = ContentFinder<Texture2D>.Get("JunkGizmo");
             
         }
 

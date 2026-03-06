@@ -76,7 +76,7 @@ namespace MGAutoSell
 #if DEBUG
             if (nextPerformance == 0)
                 nextPerformance = DateTimeOffset.Now.AddSeconds(1).ToUnixTimeSeconds();
-            if (DateTimeOffset.Now.ToUnixTimeSeconds() > nextPerformance)
+            if (DateTimeOffset.Now.ToUnixTimeSeconds() > nextPerformance && ticks.Any())
             {
                 previousRenderTime = $"{ticks.Min()}~{ticks.Max()} | {Median(ticks)}";
                 ticks.Clear();
@@ -205,7 +205,7 @@ namespace MGAutoSell
                 GUI.color = color;
 
                 row.x += row.height + 10;
-                Widgets.Label(row, thingDef.GetLabel() + $"x{count}");
+                Widgets.Label(row, thingDef.GetLabel() + $" x{count}");
                 row.x -= row.height + 10;
 
                 var middle = row.MiddlePartPixels(50, row.height);
@@ -286,15 +286,19 @@ namespace MGAutoSell
 
             var traderPriceType = PriceType.Normal.PriceMultiplier();
             var playerNegotiator = socialPawn.GetStatValue(StatDefOf.TradePriceImprovement);
+            var leaderBonus = socialPawn == Faction.OfPlayer.leader ? 0.02f : 0f;
             var settlement = socialPawn.TradePriceImprovementOffsetForPlayer;
-            var drugBonus = socialPawn.GetStatValue(StatDefOf.DrugSellPriceImprovement);
-            var animalProduceBonus = socialPawn.GetStatValue(StatDefOf.AnimalProductsSellImprovement);
+            var drugBonusRaw = socialPawn.GetStatValue(StatDefOf.DrugSellPriceImprovement);
+            var animalProduceBonusRaw = ModsConfig.IdeologyActive ? socialPawn.GetStatValue(StatDefOf.AnimalProductsSellImprovement) : 0f;
+            var totalNegotiator = playerNegotiator + leaderBonus;
             thingDictionary.RemoveAll(x => !x.Value.Any());
             var sellEntries = thingDictionary.Select(x =>
             {
                 var (thingDef, items) = x;
-                var humanPawn = items.FirstOrDefault() is Pawn pawn && pawn.RaceProps.Humanlike ? 0.6f : 1f;
-                var priceTotal = items.Select(y => TradeUtility.GetPricePlayerSell(y, traderPriceType, humanPawn, playerNegotiator, settlement, drugBonus, animalProduceBonus) * y.stackCount).Sum();
+                var drugBonus = thingDef.IsNonMedicalDrug ? drugBonusRaw : 0f;
+                var animalProduceBonus = (thingDef.IsLeather || thingDef.IsMeat || thingDef.IsWool) ? animalProduceBonusRaw : 0f;
+                var humanPawn = ModsConfig.IdeologyActive && items.FirstOrDefault() is Pawn pawn && pawn.RaceProps.Humanlike ? 0.6f : 1f;
+                var priceTotal = items.Select(y => TradeUtility.GetPricePlayerSell(y, traderPriceType, humanPawn, totalNegotiator, settlement, drugBonus, animalProduceBonus) * y.stackCount).Sum();
                 var itemsTotal = items.Sum(x => x.stackCount);
                 var pricePer = priceTotal / itemsTotal;
                 var sellDown = sellDictionary.TryGetValue(thingDef);

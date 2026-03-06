@@ -7,7 +7,7 @@
         <tabWindowClass>MGAutoSell.MainTabWindow_FindAndAutoSell</tabWindowClass>
         <validWithoutMap>true</validWithoutMap>
         <minimized>True</minimized>
-        <iconPath>UI/Widgets/CheckOff</iconPath>
+        <iconPath>TradeWindowIcon</iconPath>
         <order>250</order>
     </MainButtonDef>
 </Defs>
