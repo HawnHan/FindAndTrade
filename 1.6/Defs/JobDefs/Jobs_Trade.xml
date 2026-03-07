@@ -5,10 +5,4 @@
     <driverClass>MGAutoSell.AI.JobDriver_Barter</driverClass>
     <reportString>Bartering at TargetA.</reportString>
   </JobDef>  
-  
-  <!-- <JobDef>
-    <defName>MGJobDriver_PawnBarter</defName>
-    <driverClass>MGAutoSell.AI.JobDriver_PawnBarter</driverClass>
-    <reportString>Bartering with TargetA.</reportString>
-  </JobDef> -->
 </Defs>

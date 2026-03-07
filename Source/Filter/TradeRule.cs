@@ -1,7 +1,7 @@
 ﻿using TD_Find_Lib;
 using Verse;
 
-namespace MGAutoSell
+namespace MGAutoSell.Filter
 {
     public class TradeRule : IExposable, IQuerySearch
     {
@@ -16,7 +16,8 @@ namespace MGAutoSell
         private int? _hash;
         public int Hash
         {
-            get { 
+            get
+            {
                 _hash ??= search.GetHashCode();
                 return _hash.Value;
             }
@@ -29,7 +30,7 @@ namespace MGAutoSell
         public bool AllowBuy => Import > 0 && Mode is TradeMode.Import or TradeMode.Maintain;
 
         public bool NoConfig => Export == 0 && Import == 0;
-        public bool Invalid => (Export > 0 && Import > 0 && Import > Export) || Import < 0 || Export < 0;
+        public bool Invalid => Export > 0 && Import > 0 && Import > Export || Import < 0 || Export < 0;
 
         public void ExposeData()
         {
@@ -54,7 +55,7 @@ namespace MGAutoSell
 
         public TradeRule()
         {
-            
+
         }
     }
 

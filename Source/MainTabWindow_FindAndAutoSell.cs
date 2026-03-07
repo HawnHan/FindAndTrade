@@ -4,6 +4,8 @@ using System.Diagnostics;
 using System.Linq;
 using HarmonyLib;
 using LudeonTK;
+using MGAutoSell.Extensions;
+using MGAutoSell.Filter;
 using RimWorld;
 using TD_Find_Lib;
 using UnityEngine;
@@ -636,7 +638,7 @@ namespace MGAutoSell
                 var def = MainTabDefOf.FindAndAutoSell; // e.g. MainButtonDefOf.Assign, Architect, Research, etc.
                 Find.MainTabsRoot.SetCurrentTab(def, playSound: false);
 
-                CloseDevConsole();
+                //CloseDevConsole();
 
                 // Optional: if you want the actual window instance:
                 // var window = Find.MainTabsRoot.OpenTab?.TabWindow;

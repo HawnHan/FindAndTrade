@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using MGAutoSell.Extensions;
 using TD_Find_Lib;
 using UnityEngine;
 using Verse;
 
-namespace MGAutoSell
+namespace MGAutoSell.Filter
 {
     internal class TradeRuleEditor : SearchEditorRevertableWindow
     {
@@ -22,7 +23,7 @@ namespace MGAutoSell
             var rect1 = headerRect.LeftPart(0.4f);
             if (search != null)
             {
-                Widgets.Label(rect1, "TD.Listing".Translate() + search.ListType.TranslateEnum<SearchListType>());
+                Widgets.Label(rect1, "TD.Listing".Translate() + search.ListType.TranslateEnum());
                 if (!locked)
                 {
                     Widgets.DrawHighlightIfMouseover(rect1);
@@ -31,29 +32,29 @@ namespace MGAutoSell
                         var options = new List<FloatMenuOption>();
                         foreach (SearchListType searchListType in DebugSettings.godMode
                                      ? Enum.GetValues(typeof(SearchListType))
-                                     : (Array)SearchListNormalTypes.normalTypes)
+                                     : SearchListNormalTypes.normalTypes)
                         {
                             var type = searchListType;
                             if (DebugSettings.godMode || type < SearchListType.Haulables)
                             {
                                 if (Event.current.control)
-                                    options.Add(new FloatMenuOption(type.TranslateEnum<SearchListType>(), (Action)(() =>
+                                    options.Add(new FloatMenuOption(type.TranslateEnum(), () =>
                                         {
                                             if (Event.current.shift)
                                                 search.SetListType(type);
                                             else
                                                 search.ToggleListType(type);
-                                        }),
-                                        search.ListType.HasFlag((Enum)type)
+                                        },
+                                        search.ListType.HasFlag(type)
                                             ? Widgets.CheckboxOnTex
                                             : Widgets.CheckboxOffTex, Color.white));
                                 else
-                                    options.Add(new FloatMenuOption(type.TranslateEnum<SearchListType>(),
-                                        (Action)(() => search.SetListType(type))));
+                                    options.Add(new FloatMenuOption(type.TranslateEnum(),
+                                        () => search.SetListType(type)));
                             }
                         }
 
-                        Find.WindowStack.Add((Window)new FloatMenu(options));
+                        Find.WindowStack.Add(new FloatMenu(options));
                     }
                 }
             }
@@ -72,7 +73,7 @@ namespace MGAutoSell
                 return;
 
             var rect3 = headerRect.RightPart(0.3f);
-            var label =  _tradeRule.Aggregation switch
+            var label = _tradeRule.Aggregation switch
             {
                 TradeRuleAggregation.ThingDef => _aggByDef,
                 TradeRuleAggregation.Rule => _aggByRule,

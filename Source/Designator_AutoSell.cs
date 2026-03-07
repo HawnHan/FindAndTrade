@@ -65,12 +65,6 @@ namespace MGAutoSell
         }
     }
 
-
-    public static class AddDesignator_AutoSell
-    {
-        
-    }
-
     [DefOf]
     public static class MGDesignatorDefOf
     {

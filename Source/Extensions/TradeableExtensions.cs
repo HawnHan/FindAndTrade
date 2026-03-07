@@ -1,14 +1,14 @@
 ﻿using RimWorld;
 using Verse;
 
-namespace MGAutoSell
+namespace MGAutoSell.Extensions
 {
     public static class TradeableExtensions
     {
         public static bool AnyThingNotJunk(this Tradeable tradeable, out Thing item)
         {
             item = tradeable.AnyThing;
-            if(item == null)
+            if (item == null)
                 return false;
 
             // Traders don't have a map, and therefore can't designate junk
@@ -16,7 +16,7 @@ namespace MGAutoSell
                 return true;
 
             item = tradeable.FirstThingTrader;
-            if(item != null)
+            if (item != null)
                 return true;
 
             var designator = MGDesignatorDefOf.MGAutoSell;

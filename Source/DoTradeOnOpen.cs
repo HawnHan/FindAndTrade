@@ -8,7 +8,6 @@ namespace MGAutoSell
     [HarmonyPatch(typeof(Dialog_Trade), nameof(Dialog_Trade.PostOpen))]
     public static class DoTradeOnOpen
     {
-        
         public static void Postfix()
         {
             try
@@ -23,8 +22,6 @@ namespace MGAutoSell
                 Log.Error($"Failed to process Trade UI: {ex}");
             }
         }
-
-        
     }
 }
 

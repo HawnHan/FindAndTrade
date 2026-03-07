@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using MGAutoSell.Filter;
 using RimWorld;
 using Verse;
 

@@ -6,6 +6,8 @@ using System.Reflection;
 using System.Text;
 using HarmonyLib;
 using LudeonTK;
+using MGAutoSell.Extensions;
+using MGAutoSell.Filter;
 using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
@@ -190,9 +192,6 @@ namespace MGAutoSell
 
         public static void DoTradeDeal(TradeDeal deal)
         {
-#if DEBUG
-            var performanceTracker = PerformanceTracker.StartNew();
-#endif
             var map = TradeSession.playerNegotiator?.Map;
             if (map == null) return;
 
@@ -215,9 +214,6 @@ namespace MGAutoSell
                 ExtrasOnMap.Clear();
             }
 
-#if DEBUG
-            performanceTracker.Checkpoint("Setup");
-#endif
             var itemsToAdd = itemCache.GroupBy(x => x.ThingDef).ToDictionary(x => x.Key,
                 x => x.ToList().Sum(x => x.CountHeldBy(Transactor.Colony)));
 
@@ -225,9 +221,6 @@ namespace MGAutoSell
             {
                 ThingDefAggregations.TryAdd(item.Key, item.Value);
             }
-#if DEBUG
-            performanceTracker.Checkpoint("Population");
-#endif
             // Don't buy more medicine if there's literally heaps in the Hospital already...
             var itemsOnMap = map.listerThings.AllThings.Where(x => !x.IsForbidden(Faction.OfPlayer) & !x.Position.Fogged(x.Map)).ToList();
             tradeables.ForEach(x => x.thingsColony.ForEach(y => itemsOnMap.Remove(y)));
@@ -235,9 +228,6 @@ namespace MGAutoSell
                 .GroupBy(x => x.def)
                 .ToDictionary(x => x.Key, x => x.ToList().Sum(y => y.stackCount));
 
-#if DEBUG
-            performanceTracker.Checkpoint("Extra items");
-#endif
 
             foreach (var tradeable in tradeables)
             {
@@ -252,9 +242,7 @@ namespace MGAutoSell
                 sellDictionary[tradeable] = total;
             }
             itemCache.RemoveAll(x => !x.thingsColony.Any() && !x.thingsTrader.Any());
-#if DEBUG
-            performanceTracker.Checkpoint("Junk");
-#endif
+
             var pairings = new Dictionary<Tradeable, TradeRule>();
             foreach (var rule in autoTrade.tradeRules.Where(x => x.Enabled && x.search.Children.queries.Any()))
             {
@@ -385,9 +373,6 @@ namespace MGAutoSell
                     buyOrders.All(x => x.Tradeable != trade.Tradeable))
                     .ToList()
                     .ForEach(x => AddRuleLabelsToTradeUI.ExtraLabels.Remove(x.Tradeable));
-#if DEBUG
-                performanceTracker.Checkpoint($"Trade Rule - {rule.search.Name}");
-#endif
             }
 
             foreach (var (tradeable, toSell) in sellDictionary)
@@ -398,9 +383,7 @@ namespace MGAutoSell
 
             deal.UpdateCurrencyCount();
             AddRuleLabelsToTradeUI.TradeWindow?.Notify_CommonSearchChanged();
-#if DEBUG
-            performanceTracker.Checkpoint("Set trade");
-#endif
+
             // Buying too much
             var buyReversed = buyDictionary.Select(x => new SellItem(x.Key, x.Value)).ToList();
             buyReversed.Reverse();
@@ -410,10 +393,6 @@ namespace MGAutoSell
                           deal.CurrencyTradeable.CountHeldBy(Transactor.Colony);
                 deal.NormalizeWith(buyReversed, pairings, gap);
             }
-
-#if DEBUG
-            performanceTracker.Checkpoint("Too many buy");
-#endif
 
             // Selling too much
             var sellReversed = sellDictionary.Select(x => new SellItem(x.Key, x.Value)).ToList();
@@ -425,17 +404,8 @@ namespace MGAutoSell
                 deal.NormalizeWith(sellReversed, pairings, gap);
             }
 
-#if DEBUG
-            performanceTracker.Checkpoint("Too many sell");
-#endif
-
             // Sell marked items first
             deal.AllTradeables.ForEach(x => x.thingsColony = x.thingsColony.OrderBy(x => x.Map.designationManager.DesignationOn(x, MGDesignatorDefOf.MGAutoSell) == null).ToList());
-
-#if DEBUG
-            performanceTracker.Checkpoint("Sort");
-            Log.Message(performanceTracker.Flush());
-#endif
         }
 
         private static void NormalizeWith(this TradeDeal deal, List<SellItem> list, Dictionary<Tradeable, TradeRule> pairings, int gap)
