@@ -14,7 +14,6 @@ namespace MGAutoSell
     [StaticConstructorOnStartup]
     public static class TradeRuleDrawUtility
     {
-        private static readonly Texture2D Drag = ContentFinder<Texture2D>.Get("Drag");
 
         private static readonly Color
             Green,
@@ -58,7 +57,7 @@ namespace MGAutoSell
             var right = new WidgetRow(rowRect.xMax, rowRect.y + 3, UIDirection.LeftThenDown);
 
             GUI.color = Faded;
-            left.Icon(Drag);
+            left.Icon(Textures.Drag);
             GUI.color = OGColor;
             Text.Anchor = TextAnchor.MiddleLeft;
             left.Label(item.search.name);
