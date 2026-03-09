@@ -54,7 +54,6 @@ namespace MGAutoSell
         List<long> ticks = new List<long>();
         private long nextPerformance = 0;
 #endif
-        private List<Thing> itemCache;
 
         public override Vector2 RequestedTabSize => new(1010f, 300f);
         protected override float Margin => 8f;
@@ -485,38 +484,15 @@ namespace MGAutoSell
             var timestamp = Stopwatch.GetTimestamp();
             var allItems = TradeUtility.AllLaunchableThingsForTrade(Find.CurrentMap).ToList();
             allItems.AddRange(TradeUtility.AllSellableColonyPawns(Find.CurrentMap, false).ToList());
-            var sellDictionary = new Dictionary<ThingDef, int>();
             var thingDictionary = new Dictionary<ThingDef, List<Thing>>();
             var ruleDictionary = new Dictionary<TradeRule, List<Thing>>();
 
-            var junk = allItems
-                .Where(x => x.Map.designationManager.DesignationOn(x, MGDesignatorDefOf.MGAutoSell) != null).ToList();
-            junk.ForEach(x => allItems.Remove(x));
-            var junkGrouped = junk.GroupBy(x => x.def).ToList();
+            var junk = allItems.GetJunk();
 
-            thingDictionary.AddRange(junkGrouped.ToDictionary(x => x.Key,
+            thingDictionary.AddRange(junk.ToDictionary(x => x.Key,
                 x => x.ToList()));
 
-            foreach (var rule in comp.tradeRules.Where(x =>
-                         x is { Enabled: true, AllowSell: true } && x.search.Children.queries.Any()))
-            {
-                var items = allItems.Where(x => rule.search.AppliesTo(x)).ToList();
-                if(items.Any())
-                    ruleDictionary[rule] = items;
-
-                items.ForEach(x => { allItems.Remove(x); });
-
-                var itemsGrouped = items
-                    .GroupBy(x => x.def).ToList();
-
-                foreach (var (thingDef, list) in itemsGrouped.ToDictionary(x => x.Key, x => x.ToList()))
-                {
-                    if (!thingDictionary.TryAdd(thingDef, list))
-                        thingDictionary[thingDef].AddRange(list);
-
-                    sellDictionary.TryAdd(thingDef, rule.Export);
-                }
-            }
+            var sellDictionary = allItems.DoRules(comp.tradeRules, ref thingDictionary, ref ruleDictionary);
 
             var traders = GetTraders(false);
             if (comp.autoTrade)
@@ -527,78 +503,29 @@ namespace MGAutoSell
             }
 
             var socialPawn = SellerOverride ?? traders.MaxBy(x => x.Improvement).Pawn;
-
-            var traderPriceType = PriceType.Normal.PriceMultiplier();
             var playerNegotiator = socialPawn.GetStatValue(StatDefOf.TradePriceImprovement);
             var isLeader = ModsConfig.IdeologyActive && socialPawn == Faction.OfPlayer.leader;
-            var settlement = socialPawn.TradePriceImprovementOffsetForPlayer;
-            var drugBonusRaw = socialPawn.GetStatValue(StatDefOf.DrugSellPriceImprovement);
-            var animalProduceBonusRaw = ModsConfig.IdeologyActive
-                ? socialPawn.GetStatValue(StatDefOf.AnimalProductsSellImprovement)
-                : 0f;
-            thingDictionary.RemoveAll(x => !x.Value.Any());
-            var sellEntries = thingDictionary.Select(x =>
-                {
-                    var (thingDef, items) = x;
-                    var drugBonus = thingDef.IsNonMedicalDrug ? drugBonusRaw : 0f;
-                    var animalProduceBonus = (thingDef.IsLeather || thingDef.IsMeat || thingDef.IsWool)
-                        ? animalProduceBonusRaw
-                        : 0f;
-                    var humanPawn = ModsConfig.IdeologyActive && items.FirstOrDefault() is Pawn pawn &&
-                                    pawn.RaceProps.Humanlike
-                        ? 0.6f
-                        : 1f;
-                    var priceTotal = items.Select(y => TradeUtility.GetPricePlayerSell(y, traderPriceType, humanPawn,
-                        playerNegotiator, settlement, drugBonus, animalProduceBonus) * y.stackCount).Sum();
-                    var itemsTotal = items.Sum(x => x.stackCount);
-                    var pricePer = priceTotal / itemsTotal;
-                    var sellDown = sellDictionary.TryGetValue(thingDef);
 
-                    if (itemsTotal <= sellDown)
-                        return null;
+            var sellEntries = sellDictionary.GetEntries(socialPawn, ref thingDictionary);
 
-                    priceTotal -= pricePer * sellDown;
-                    itemsTotal -= sellDown;
-
-                    var total = (float)Math.Round(priceTotal, 0);
-
-                    var pricePerLabel = (priceTotal / itemsTotal).ToStringMoney();
-                    var totalLabel = total.ToStringMoney();
-
-
-                    return new SellRecord(thingDef, itemsTotal, total, pricePerLabel, totalLabel);
-                })
-                .Where(x => x != null)
-                .OrderByDescending(x => x.Total)
-                .ToList();
-
-            // TODO Hmmm ok, this is too dense...
-            itemCache ??= DefDatabase<ThingDef>.AllDefsListForReading.Select(y => ThingMaker.MakeThing(y, y.MadeFromStuff ? GenStuff.DefaultStuffFor(y) : null)).ToList();
-            var potentialItems = itemCache.Where(x => comp.tradeRules.Any(y => y.Enabled && y.search.Children.queries.Any() && y.AllowBuy &&  y.search.AppliesTo(x))).Select(x => x.def).ToList();
-            potentialItems.RemoveAll(x => sellEntries.Any(y => y.Item == x));
+            var potentialItems = comp.tradeRules.GetPossibleItems(sellEntries);
+            
             var totalSilver = (float)Math.Round(sellEntries.Sum(x => x.Total), 0);
 
-            var ruleCounts = Mod.Settings.showQuanityInsteadOfLabel
-                ? ruleDictionary.ToDictionary(x => x.Key,
-                    x => "x" + (x.Key.Aggregation == TradeRuleAggregation.ThingDef
-                        ? x.Value.GroupBy(y => y.def)
-                            .Select(y => new RuleRecord(y.Key, y.ToList().Sum(z => z.stackCount)))
-                            .Max(x => x.Count).ToString()
-                        : x.Value.Sum(y => y.stackCount).ToString()))
-                : [];
+            var ruleCounts = ruleDictionary.GetRuleCounts();
+
+            var trader = new TraderRecord(socialPawn,
+                socialPawn.LabelShort,
+                () => PortraitsCache.Get(socialPawn, new Vector2(24, 24), Rot4.South,
+                    ColonistBarColonistDrawer.PawnTextureCameraOffset, 1.28205f),
+                playerNegotiator.ToStringPercent(), playerNegotiator, isLeader);
 
             sellCache = new ItemsToSell(
                 Items: sellEntries,
                 PotentialItems: potentialItems,
                 TotalSilver: totalSilver,
                 TotalSilverLabel: totalSilver.ToStringMoney(),
-
-                Trader: new TraderRecord(socialPawn,
-                    socialPawn.LabelShort,
-                    () => PortraitsCache.Get(socialPawn, new Vector2(24, 24), Rot4.South,
-                        ColonistBarColonistDrawer.PawnTextureCameraOffset, 1.28205f),
-                    playerNegotiator.ToStringPercent(), playerNegotiator, isLeader),
-
+                Trader: trader,
                 Rules: ruleCounts);
             sellCache.Rules.RemoveAll(x => string.IsNullOrWhiteSpace(x.Value));
 
