@@ -16,6 +16,8 @@ namespace MGAutoSell
 {
     public record ItemsToSell(
         List<SellRecord> Items,
+        List<ThingDef> PotentialItems,
+
         float TotalSilver,
         string TotalSilverLabel,
         TraderRecord Trader,
@@ -42,6 +44,7 @@ namespace MGAutoSell
 
         Vector2 listerScroll = Vector2.zero;
         Vector2 settingScroll = Vector2.zero;
+        Vector2 sellScroll = Vector2.zero;
         private string previousRenderTime;
 
         private string title = $"<i>{"MGAutoSell.Title".Translate()}</i>";
@@ -51,6 +54,7 @@ namespace MGAutoSell
         List<long> ticks = new List<long>();
         private long nextPerformance = 0;
 #endif
+        private List<Thing> itemCache;
 
         public override Vector2 RequestedTabSize => new(1010f, 300f);
         protected override float Margin => 8f;
@@ -316,7 +320,7 @@ namespace MGAutoSell
             GUI.color = color;
 #endif
         }
-
+        
         private void DrawSellPanel(Rect toSellRect)
         {
             toSellRect.SplitHorizontally(Text.LineHeight, out var itemHeader, out toSellRect);
@@ -330,9 +334,24 @@ namespace MGAutoSell
 
             int i = 0;
             var anchor = Text.Anchor;
+            var totalItems = sellCache.Items.Count + (Mod.Settings.showAllMatchingItems ? sellCache.PotentialItems.Count : 0);
+            var viewRect = toSellRect.TopPartPixels(toSellRect.height - Text.LineHeight);
+            var totalHeight = totalItems * Text.LineHeight;
+            var shouldScroll = totalHeight > viewRect.height;
+            var row = new Rect(0, 0, 0, 0);
+            var listing = new Listing_StandardIndent();
+            if(shouldScroll)
+            {
+                viewRect.width += 16;
+                listing.BeginScrollView(viewRect, ref sellScroll, viewRect.LeftPartPixels(viewRect.width - 16).TopPartPixels(totalHeight).AtZero() );
+            }
+
             foreach (var (thingDef, count, total, pricePerLabel, totalLabel) in sellCache.Items)
             {
-                toSellRect.SplitHorizontally(Text.LineHeight, out var row, out toSellRect);
+                if (shouldScroll)
+                    row = listing.GetRect(Text.LineHeight);
+                else
+                    viewRect.SplitHorizontally(Text.LineHeight, out row, out viewRect);
 
                 if (i % 2 == 1)
                     Widgets.DrawLightHighlight(row);
@@ -356,6 +375,36 @@ namespace MGAutoSell
 
                 var size = Text.CalcSize(totalLabel);
                 Widgets.Label(row.RightPartPixels(size.x + 4), totalLabel);
+            }
+
+            if (Mod.Settings.showAllMatchingItems)
+            {
+                foreach (var thingDef in sellCache.PotentialItems)
+                {
+                    if (shouldScroll)
+                        row = listing.GetRect(Text.LineHeight);
+                    else
+                        viewRect.SplitHorizontally(Text.LineHeight, out row, out viewRect);
+
+                    if (i % 2 == 1)
+                        Widgets.DrawLightHighlight(row);
+                    i++;
+                    var color = GUI.color;
+                    GUI.color = thingDef.uiIconColor;
+                    GUI.DrawTexture(row.LeftPartPixels(row.height), thingDef.uiIcon);
+                    GUI.color = _fadedColor;
+
+                    row.x += row.height + 10;
+                    Widgets.Label(row, thingDef.GetLabel());
+                    row.x -= row.height + 10;
+                    GUI.color = color;
+                }
+            }
+
+            if (shouldScroll)
+            {
+                var height = 0f;
+                listing.EndScrollView(ref height);
             }
 
             var footer = toSellRect.BottomPartPixels(Text.LineHeight);
@@ -523,10 +572,13 @@ namespace MGAutoSell
                 .ToList();
 
             // TODO Hmmm ok, this is too dense...
+            itemCache ??= DefDatabase<ThingDef>.AllDefsListForReading.Select(y => ThingMaker.MakeThing(y, y.defaultStuff)).ToList();
+            var potentialItems = itemCache.Where(x => comp.tradeRules.Any(y => y.Enabled && y.search.Children.queries.Any() && y.AllowBuy &&  y.search.AppliesTo(x))).Select(x => x.def).ToList();
+            potentialItems.RemoveAll(x => sellEntries.Any(y => y.Item == x));
             var totalSilver = (float)Math.Round(sellEntries.Sum(x => x.Total), 0);
             sellCache = new ItemsToSell(
                 Items: sellEntries,
-
+                PotentialItems: potentialItems,
                 TotalSilver: totalSilver,
                 TotalSilverLabel: totalSilver.ToStringMoney(),
 
