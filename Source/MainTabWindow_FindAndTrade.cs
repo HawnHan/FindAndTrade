@@ -404,7 +404,11 @@ namespace MGAutoSell
                     Text.Anchor = anchor;
                 }
 
-                var size = Text.CalcSize(totalLabel);
+                if (!labelSizeCache.TryGetValue(totalLabel, out var size))
+                {
+                    size = Text.CalcSize(totalLabel);
+                    labelSizeCache[totalLabel] = size;
+                }
                 Widgets.Label(row.RightPartPixels(size.x + 4), totalLabel);
             }
 
