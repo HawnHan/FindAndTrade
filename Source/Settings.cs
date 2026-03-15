@@ -174,7 +174,7 @@ namespace MGAutoSell
                 Find.WindowStack.Add(new FloatMenu([
                     new(OpenSetting.None.ToString(), () => MenuToOpen = OpenSetting.None),
                     new(OpenSetting.Settings.ToString(), () => MenuToOpen = OpenSetting.Settings),
-                    new(OpenSetting.MainMenuTab.ToString(), () => MenuToOpen = OpenSetting.MainMenuTab),
+                    new(OpenSetting.MainMenuTab.ToString().SplitCamelCase(), () => MenuToOpen = OpenSetting.MainMenuTab),
 
                 ]));
             }

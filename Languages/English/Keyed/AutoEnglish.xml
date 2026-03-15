@@ -36,7 +36,7 @@
     <MGAutoSell.Settings.BenchmarkDisabledNoDev>Enable dev mode to benchmark.</MGAutoSell.Settings.BenchmarkDisabledNoDev>
 
     <MGAutoSell.Settings.scanEveryStackLabel>Scan Every Stack</MGAutoSell.Settings.scanEveryStackLabel>
-    <MGAutoSell.Settings.scanEveryStackTooltip>Scan every stack of items on the map instead of just the first per ThingDef.</MGAutoSell.Settings.scanEveryStackTooltip>
+    <MGAutoSell.Settings.scanEveryStackTooltip>Scan every stack of items on the map instead of just the first Thing per trade row.</MGAutoSell.Settings.scanEveryStackTooltip>
 
     <MGAutoSell.Settings.showAllMatchingItemsLabel>Show All Matching ThingDefs</MGAutoSell.Settings.showAllMatchingItemsLabel>
     <MGAutoSell.Settings.showAllMatchingItemsTooltip>Display all items that match the trade rules, not just selling.\n\nA rule's list is regenerated when the rule changes.</MGAutoSell.Settings.showAllMatchingItemsTooltip>
