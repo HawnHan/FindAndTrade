@@ -46,4 +46,7 @@
 
     <MGAutoSell.Settings.colorRuleCountsOnWorkLabel>Color Import/Export Boxes Based on Quantity</MGAutoSell.Settings.colorRuleCountsOnWorkLabel>
     <MGAutoSell.Settings.colorRuleCountsOnWorkTooltip>Color the Import/Export boxes based on whether the rule will do something on the next trade.</MGAutoSell.Settings.colorRuleCountsOnWorkTooltip>
+
+    <MGAutoSell.Settings.showMinMaxLabelWhereApplicableLabel>Show Min/Max Label Where Applicable</MGAutoSell.Settings.showMinMaxLabelWhereApplicableLabel>
+    <MGAutoSell.Settings.showMinMaxLabelWhereApplicableTooltip>When showing quantity instead of label, show the min/max quantity as the label if the is aggregated by ThingDef, and Min is not equal to Max, and if there's space.</MGAutoSell.Settings.showMinMaxLabelWhereApplicableTooltip>
 </LanguageData>

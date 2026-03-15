@@ -16,7 +16,6 @@ namespace MGAutoSell
     {
         private static Color _fadedColor = new(1, 1, 1, 0.4f);
         private static string sellHeader = "MGAutoSell.SellHeader".Translate();
-        private static Dictionary<string, Vector2> labelSizeCache = new();
 
         public static void DrawSellPanel(Rect toSellRect, ItemsToSell sellCache, ref Vector2 sellScroll, WindowTab currentTab = WindowTab.Rules, Pawn sellerOverride = null, Action invalidateCache = null)
         {
@@ -81,10 +80,10 @@ namespace MGAutoSell
                     Text.Anchor = anchor;
                 }
 
-                if (!labelSizeCache.TryGetValue(totalLabel, out var size))
+                if (!Mod.Settings.LabelSizeCache.TryGetValue(totalLabel, out var size))
                 {
                     size = Text.CalcSize(totalLabel);
-                    labelSizeCache[totalLabel] = size;
+                    Mod.Settings.LabelSizeCache[totalLabel] = size;
                 }
                 Widgets.Label(row.RightPartPixels(size.x + 4), totalLabel);
             }
@@ -118,10 +117,10 @@ namespace MGAutoSell
                     Widgets.Label(row, potentialItem.Item.GetLabel());
                     row.x -= row.height + 10;
 
-                    if (!labelSizeCache.TryGetValue(potentialItem.Rule, out var size))
+                    if (!Mod.Settings.LabelSizeCache.TryGetValue(potentialItem.Rule, out var size))
                     {
                         size = Text.CalcSize(potentialItem.Rule);
-                        labelSizeCache[potentialItem.Rule] = size;
+                        Mod.Settings.LabelSizeCache[potentialItem.Rule] = size;
                     }
 
                     Widgets.Label(row.RightPartPixels(size.x), potentialItem.Rule);

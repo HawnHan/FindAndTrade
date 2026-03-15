@@ -114,7 +114,7 @@ namespace MGAutoSell
             return sellEntries;
         }
 
-        public static Dictionary<TradeRule, ItemAndLabel<int>> GetRuleCounts(
+        public static Dictionary<TradeRule, (ItemAndLabel<int>, ItemAndLabel<int>)> GetRuleCounts(
             this Dictionary<TradeRule, List<Thing>> ruleDictionary)
         {
             if (!Mod.Settings.showQuantityInsteadOfLabel && !Mod.Settings.colorRuleCountsOnWork)
@@ -123,13 +123,18 @@ namespace MGAutoSell
             return ruleDictionary.ToDictionary(x => x.Key,
                     x =>
                     {
-                        var count = x.Key.Aggregation == TradeRuleAggregation.ThingDef
-                            ? x.Value.GroupBy(y => y.def)
-                                .Select(y => new RuleRecord(y.Key, y.ToList().Sum(z => z.stackCount)))
+                        var grouped = x.Value.GroupBy(y => y.def)
+                            .Select(y => new RuleRecord(y.Key, y.ToList().Sum(z => z.stackCount))).ToList();
+                        var max = x.Key.Aggregation == TradeRuleAggregation.ThingDef
+                            ? grouped
                                 .Max(x => x.Count)
                             : x.Value.Sum(y => y.stackCount);
 
-                        return new ItemAndLabel<int>(count, "x" + count);
+                        var min = x.Key.Aggregation == TradeRuleAggregation.Rule 
+                            ? max
+                            : grouped.Min(x => x.Count);
+
+                        return (new ItemAndLabel<int>(min, "x" + min), new ItemAndLabel<int>(max, "x" + max));
                     });
         }
 
@@ -247,7 +252,7 @@ namespace MGAutoSell
                 TotalSilver: new ItemAndLabel<float>(totalSilver, totalSilver.ToStringMoney()),
                 Trader: trader,
                 Rules: ruleCounts);
-            sellCache.Rules.RemoveAll(x => x.Value.Value == 0);
+            sellCache.Rules.RemoveAll(x => x.Value.max.Value == 0);
 
             if (withBenchmark)
                 RecordTime(ref timestamp, ref benchmarkBuildCache);

@@ -92,7 +92,7 @@ namespace MGAutoSell
             {
                 if (invalidSell)
                     GUI.color = Invalid;
-                else if (Mod.Settings.colorRuleCountsOnWork && sellCache?.Rules?.TryGetValue(item, out var count) is true && count.Value > item.Export)
+                else if (Mod.Settings.colorRuleCountsOnWork && sellCache?.Rules?.TryGetValue(item, out var count) is true && count.max.Value > item.Export)
                     GUI.color = ColorFromMode(item.Mode);
                 var before = item.Export;
 
@@ -131,7 +131,7 @@ namespace MGAutoSell
 
                 string label = null;
                 if (Mod.Settings.showQuantityInsteadOfLabel && sellCache != null)
-                    label = sellCache.Rules?.TryGetValue(item, out var val) is true && val.Value > 0 ? val.Label : null;
+                    label = sellCache.Rules?.TryGetValue(item, out var val) is true && val.max.Value > 0 ? GetModeString(val.min.Label, val.max.Label, LabelSize) : null;
                 label ??= item.Mode.ToString();
                 right.Label(label, LabelSize);
 
@@ -159,7 +159,7 @@ namespace MGAutoSell
             {
                 if (invalidBuy)
                     GUI.color = Invalid;
-                else if (Mod.Settings.colorRuleCountsOnWork && sellCache?.Rules?.TryGetValue(item, out var count) is true && count.Value < item.Import)
+                else if (Mod.Settings.colorRuleCountsOnWork && sellCache?.Rules?.TryGetValue(item, out var count) is true && count.min.Value < item.Import)
                     GUI.color = ColorFromMode(item.Mode);
 
                 var before = item.Import;
@@ -190,6 +190,32 @@ namespace MGAutoSell
             if(reorderId != -1)
                 ReorderableWidget.Reorderable(reorderId, rowRect);
             return response;
+        }
+
+        private static string GetModeString(string min, string max, float width)
+        {
+            if (!Mod.Settings.showMinMaxLabelWhereApplicable || min == max)
+                return max;
+
+            if (!Mod.Settings.LabelSizeCache.TryGetValue(min, out var minSize))
+            {
+                minSize = Text.CalcSize(min);
+                Mod.Settings.LabelSizeCache[min] = minSize;
+            }
+
+            if (!Mod.Settings.LabelSizeCache.TryGetValue(max, out var maxSize))
+            {
+                maxSize = Text.CalcSize(max);
+                Mod.Settings.LabelSizeCache[max] = maxSize;
+            }
+
+            if (!Mod.Settings.LabelSizeCache.TryGetValue("~", out var connectSize))
+            {
+                connectSize = Text.CalcSize("~");
+                Mod.Settings.LabelSizeCache["~"] = connectSize;
+            }
+
+            return width < minSize.x + maxSize.x + connectSize.x ? max : min + "~" + max;
         }
 
         private static string GetInvalidMessage(int import, int export, TradeMode mode)

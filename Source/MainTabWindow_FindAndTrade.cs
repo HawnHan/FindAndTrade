@@ -21,7 +21,7 @@ namespace MGAutoSell
 
         ItemAndLabel<float> TotalSilver,
         TraderRecord Trader,
-        Dictionary<TradeRule, ItemAndLabel<int>> Rules);
+        Dictionary<TradeRule, (ItemAndLabel<int> min, ItemAndLabel<int> max)> Rules);
 
     public record SellRecord(ThingDef Item, int Count, ItemAndLabel<float> Total, ItemAndLabel<float> Price);
 
@@ -36,7 +36,6 @@ namespace MGAutoSell
     {
         public ItemsToSell sellCache;
         private List<TraderRecord> tradersCache;
-        private Dictionary<string, Vector2> labelSizeCache = new();
 
         private TradeRulesGameComp comp;
         private TradeRuleEditor editor;
@@ -407,10 +406,10 @@ namespace MGAutoSell
                     Text.Anchor = anchor;
                 }
 
-                if (!labelSizeCache.TryGetValue(totalLabel, out var size))
+                if (!Mod.Settings.LabelSizeCache.TryGetValue(totalLabel, out var size))
                 {
                     size = Text.CalcSize(totalLabel);
-                    labelSizeCache[totalLabel] = size;
+                    Mod.Settings.LabelSizeCache[totalLabel] = size;
                 }
                 Widgets.Label(row.RightPartPixels(size.x + 4), totalLabel);
             }
@@ -444,10 +443,10 @@ namespace MGAutoSell
                     Widgets.Label(row, potentialItem.Item.GetLabel());
                     row.x -= row.height + 10;
 
-                    if (!labelSizeCache.TryGetValue(potentialItem.Rule, out var size))
+                    if (!Mod.Settings.LabelSizeCache.TryGetValue(potentialItem.Rule, out var size))
                     {
                         size = Text.CalcSize(potentialItem.Rule);
-                        labelSizeCache[potentialItem.Rule] = size;
+                        Mod.Settings.LabelSizeCache[potentialItem.Rule] = size;
                     }
 
                     Widgets.Label(row.RightPartPixels(size.x), potentialItem.Rule);

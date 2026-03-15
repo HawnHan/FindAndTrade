@@ -11,7 +11,6 @@ namespace MGAutoSell.Extensions
 {
     public static class WidgetRowExtensions
     {
-        private static Dictionary<string, Vector2> LabelSizeCache = new();
         public static Rect TextFieldInt(this WidgetRow row, ref int val, ref string buffer, int width)
         {
             row.Gap(width + TradeRuleDrawUtility.AnnoyingUnavoidableGap);
@@ -36,12 +35,12 @@ namespace MGAutoSell.Extensions
 
         public static Rect LabelFast(this WidgetRow row, string text, string tooltip = null, float height = -1f)
         {
-            if (LabelSizeCache.TryGetValue(text, out var size)) 
+            if (Mod.Settings.LabelSizeCache.TryGetValue(text, out var size)) 
                 return row.Label(text, size.x, tooltip, height);
 
 
             size = Text.CalcSize(text);
-            LabelSizeCache.Add(text, size);
+            Mod.Settings.LabelSizeCache.Add(text, size);
 
             return row.Label(text, size.x, tooltip, height);
         }

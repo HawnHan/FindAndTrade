@@ -13,13 +13,16 @@ namespace MGAutoSell
 {
     public class Settings : ModSettings
     {
-        // TODO Icons in Menu (true)
+        public Dictionary<string, Vector2> LabelSizeCache = [];
+        
         public bool scanEveryStack = true;
 
         public bool showAllMatchingItems = true;
 
         public bool showQuantityInsteadOfLabel = true;
         public bool colorRuleCountsOnWork = true;
+        public bool showMinMaxLabelWhereApplicable = true;
+
 #if DEBUG
         public OpenSetting MenuToOpen = OpenSetting.None;
 #endif
@@ -35,6 +38,8 @@ namespace MGAutoSell
         private static string _showQuantityInsteadOfLabelTooltip;
         private static string _colorRuleCountsOnWorkLabel;
         private static string _colorRuleCountsOnWorkTooltip;
+        private static string _showMinMaxLabelWhereApplicableLabel;
+        private static string _showMinMaxLabelWhereApplicableTooltip;
 
         private static BenchmarkResults benchmarkResults = null;
         private static ItemsToSell _showAllMatchItemsEnabled;
@@ -58,8 +63,8 @@ namespace MGAutoSell
             _showQuantityInsteadOfLabelTooltip = "MGAutoSell.Settings.showQuantityInsteadOfLabelTooltip".Translate();
             _colorRuleCountsOnWorkLabel = "MGAutoSell.Settings.colorRuleCountsOnWorkLabel".Translate();
             _colorRuleCountsOnWorkTooltip = "MGAutoSell.Settings.colorRuleCountsOnWorkTooltip".Translate();
-
-
+            _showMinMaxLabelWhereApplicableLabel = "MGAutoSell.Settings.showMinMaxLabelWhereApplicableLabel".Translate();
+            _showMinMaxLabelWhereApplicableTooltip = "MGAutoSell.Settings.showMinMaxLabelWhereApplicableTooltip".Translate();
 
             var search = new QuerySearch();
             search.name = "Drugs";
@@ -88,14 +93,14 @@ namespace MGAutoSell
             firstListingHeight += 30;
 #endif
 
-            var itemRules = new Dictionary<TradeRule, ItemAndLabel<int>>();
+            var itemRules = new Dictionary<TradeRule, (ItemAndLabel<int>, ItemAndLabel<int>)>();
             var steelTradeRule = new TradeRule("Steel")
             {
                 Import = 1000,
                 ImportBuffer = "1000",
                 Mode = TradeMode.Import
             };
-            itemRules[steelTradeRule] = new ItemAndLabel<int>(900, "x900");
+            itemRules[steelTradeRule] = (new ItemAndLabel<int>(900, "x900"), new ItemAndLabel<int>(900, "x900"));
             _exampleTradeRules.Add(steelTradeRule);
 
             var meals = new TradeRule("Meals")
@@ -104,7 +109,7 @@ namespace MGAutoSell
                 ImportBuffer = "20",
                 Mode = TradeMode.Import,
             };
-            itemRules[meals] = new ItemAndLabel<int>(24, "x24");
+            itemRules[meals] = (new ItemAndLabel<int>(24, "x24"), new ItemAndLabel<int>(24, "x24"));
             _exampleTradeRules.Add(meals);
 
             var pleasurableDrugs = new TradeRule("Pleasurable Drugs")
@@ -115,7 +120,7 @@ namespace MGAutoSell
                 Export = 30,
                 ExportBuffer = "30"
             };
-            itemRules[pleasurableDrugs] = new ItemAndLabel<int>(4, "x4");
+            itemRules[pleasurableDrugs] = (new ItemAndLabel<int>(4, "x4"), new ItemAndLabel<int>(31, "x31"));
             _exampleTradeRules.Add(pleasurableDrugs);
 
             var organs = new TradeRule("Organs")
@@ -124,7 +129,7 @@ namespace MGAutoSell
                 ExportBuffer = "0",
                 Mode = TradeMode.Export
             };
-            itemRules[organs] = new ItemAndLabel<int>(2, "x2");
+            itemRules[organs] = (new ItemAndLabel<int>(2, "x2"), new ItemAndLabel<int>(2, "x2"));
             _exampleTradeRules.Add(organs);
 
             var lowQualityArt = new TradeRule("Low Quality Art")
@@ -133,7 +138,7 @@ namespace MGAutoSell
                 ExportBuffer = "0",
                 Mode = TradeMode.Export
             };
-            itemRules[lowQualityArt] = new ItemAndLabel<int>(0, "x0");
+            itemRules[lowQualityArt] =  (new ItemAndLabel<int>(0, "x0"), new ItemAndLabel<int>(0, "x0"));
             _exampleTradeRules.Add(lowQualityArt);
 
             _exampleTradeRulesCache = new ItemsToSell(null, null, null, null, itemRules);
@@ -153,6 +158,8 @@ namespace MGAutoSell
 
         public void DoSettingsWindow(Rect rect)
         {
+            var faded = new Color(1, 1, 1, 0.4f);
+            var color = GUI.color;
             var benchmarkTray = Rect.zero;
 
             rect.SplitHorizontallyWithMargin(out var top, out var bottom, out _, topHeight: firstListingHeight, compressibleMargin: 20);
@@ -194,6 +201,11 @@ namespace MGAutoSell
             listing.CheckboxLabeled(_showQuantityInsteadOfLabelLabel, ref showQuantityInsteadOfLabel, _showQuantityInsteadOfLabelTooltip);
             listing.CheckboxLabeled(_colorRuleCountsOnWorkLabel, ref colorRuleCountsOnWork, _colorRuleCountsOnWorkTooltip);
 
+            if (!showQuantityInsteadOfLabel && !colorRuleCountsOnWork)
+                GUI.color = faded;
+            listing.CheckboxLabeled(_showMinMaxLabelWhereApplicableLabel, ref showMinMaxLabelWhereApplicable, _showMinMaxLabelWhereApplicableTooltip);
+            GUI.color = color;
+
             var height = 300f;
             if (listing.CurHeight > maxHeightOfSides)
                 maxHeightOfSides = listing.CurHeight;
@@ -216,8 +228,6 @@ namespace MGAutoSell
             listing.End();
 
             var biggestHeight = height > 150f ? height : 150f;
-            var color = GUI.color;
-            var faded = new Color(1, 1, 1, 0.4f);
             GUI.color = faded;
             Widgets.DrawLineVertical(body.width + 8f, body.y + bottom.y, biggestHeight);
             GUI.color = color;
@@ -284,7 +294,7 @@ namespace MGAutoSell
         
         private void DoBenchmarkLine(Listing listing, string label, ItemAndLabel<long> item, long max, ref int index)
         {
-            var rect = listing.GetRect(30);
+            var rect = listing.GetRect(26);
 
             if (index % 2 == 1)
                 Widgets.DrawLightHighlight(rect);
