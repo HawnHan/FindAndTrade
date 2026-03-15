@@ -92,6 +92,8 @@ namespace MGAutoSell
             {
                 if (invalidSell)
                     GUI.color = Invalid;
+                else if (Mod.Settings.colorRuleCountsOnWork && sellCache?.Rules?.TryGetValue(item, out var count) is true && count.Value > item.Export)
+                    GUI.color = ColorFromMode(item.Mode);
                 var before = item.Export;
 
                 var tooltip = right.TextFieldInt(ref item.Export, ref item.ExportBuffer, BoxSize);
@@ -119,13 +121,7 @@ namespace MGAutoSell
             if (GUI.enabled)
             {
                 Text.Anchor = TextAnchor.MiddleCenter;
-                GUI.color = item.Mode switch
-                {
-                    TradeMode.Export => Green,
-                    TradeMode.Import => Blue,
-                    TradeMode.Maintain => Yellow,
-                    _ => throw new ArgumentOutOfRangeException()
-                };
+                GUI.color = ColorFromMode(item.Mode);
                 var end = right.FinalX;
 
                 if (item.Mode is TradeMode.Export or TradeMode.Maintain)
@@ -135,7 +131,7 @@ namespace MGAutoSell
 
                 string label = null;
                 if (Mod.Settings.showQuantityInsteadOfLabel && sellCache != null)
-                    sellCache.Rules.TryGetValue(item, out label);
+                    label = sellCache.Rules?.TryGetValue(item, out var val) is true && val.Value > 0 ? val.Label : null;
                 label ??= item.Mode.ToString();
                 right.Label(label, LabelSize);
 
@@ -163,6 +159,8 @@ namespace MGAutoSell
             {
                 if (invalidBuy)
                     GUI.color = Invalid;
+                else if (Mod.Settings.colorRuleCountsOnWork && sellCache?.Rules?.TryGetValue(item, out var count) is true && count.Value < item.Import)
+                    GUI.color = ColorFromMode(item.Mode);
 
                 var before = item.Import;
                 var tooltip = right.TextFieldInt(ref item.Import, ref item.ImportBuffer, BoxSize);
@@ -189,7 +187,8 @@ namespace MGAutoSell
             Text.Anchor = OGAnchor;
             Text.CurTextFieldStyle.alignment = OGFieldAlignment;
 
-            ReorderableWidget.Reorderable(reorderId, rowRect);
+            if(reorderId != -1)
+                ReorderableWidget.Reorderable(reorderId, rowRect);
             return response;
         }
 
@@ -210,8 +209,17 @@ namespace MGAutoSell
                     Log.WarningOnce($"Attempted to fetch a tooltip message for an invalid row, however none are defined for this case.\nImport: {import}\nExport: {export}\nMode: {mode}", 54987);
                     return "*shrugs*";
             }
+        }
 
-
+        private static Color ColorFromMode(TradeMode mode)
+        {
+            return mode switch
+            {
+                TradeMode.Export => Green,
+                TradeMode.Import => Blue,
+                TradeMode.Maintain => Yellow,
+                _ => throw new ArgumentOutOfRangeException()
+            };
         }
 
         static HashSet<int> mouseEvents = [];

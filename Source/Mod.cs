@@ -13,9 +13,11 @@ namespace MGAutoSell
     public class Mod : Verse.Mod
     {
         public static Settings Settings;
+        public static Mod Instance;
         public Mod(ModContentPack content) : base(content)
         {
             Settings = GetSettings<Settings>();
+            Instance = this;
             LongEventHandler.ExecuteWhenFinished(() => Settings.Init());
             var harmony = new Harmony(content.PackageId);
             harmony.PatchAll();

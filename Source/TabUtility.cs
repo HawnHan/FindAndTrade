@@ -35,17 +35,19 @@ namespace MGAutoSell
             var viewRect = sellCache.Trader != null ? toSellRect.TopPartPixels(toSellRect.height - Text.LineHeight) : toSellRect;
             var totalHeight = totalItems * Text.LineHeight;
             var shouldScroll = totalHeight > viewRect.height;
+            var areWeInSettingsMenu = invalidateCache == null;
             var row = new Rect(0, 0, 0, 0);
             var listing = new Listing_StandardIndent();
             if (shouldScroll)
             {
-                viewRect.width += 16;
+                if(!areWeInSettingsMenu)
+                    viewRect.width += 16;
                 listing.BeginScrollView(viewRect, ref sellScroll, viewRect.LeftPartPixels(viewRect.width - 16).TopPartPixels(totalHeight).AtZero());
             }
 
             var minRenderIndex = shouldScroll ? Math.Floor(sellScroll.y / Text.LineHeight) : 0;
             var maxRenderIndex = shouldScroll ? Math.Ceiling(viewRect.height / Text.LineHeight) + minRenderIndex : 0;
-            foreach (var (thingDef, count, total, pricePerLabel, totalLabel) in sellCache.Items)
+            foreach (var (thingDef, count, (total, totalLabel), (pricePer, pricePerLabel)) in sellCache.Items)
             {
                 i++;
                 if (shouldScroll)
@@ -174,11 +176,10 @@ namespace MGAutoSell
             }
 
             var footerRow = new WidgetRow(footer.xMax - 4, footer.y, UIDirection.LeftThenDown);
-            footerRow.LabelFast(sellCache.TotalSilverLabel);
+            footerRow.LabelFast(sellCache.TotalSilver.Label);
             footerRow.Icon(ThingDefOf.Silver.uiIcon);
             footerRow.LabelFast("Total:");
         }
-
         public static List<TraderRecord> GetTraders(bool generatePictures = true)
         {
             var stat = StatDefOf.TradePriceImprovement;

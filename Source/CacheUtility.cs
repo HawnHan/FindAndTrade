@@ -82,36 +82,42 @@ namespace MGAutoSell
 
                     priceTotal -= pricePer * sellDown;
                     itemsTotal -= sellDown;
+                    priceTotal = (float)Math.Round(priceTotal, 0);
+                    
 
-                    var total = (float)Math.Round(priceTotal, 0);
+                    var total = new ItemAndLabel<float>(priceTotal, priceTotal.ToStringMoney());
+                    var pricePerItem = new ItemAndLabel<float>((priceTotal / itemsTotal),
+                        (priceTotal / itemsTotal).ToStringMoney());
 
-                    var pricePerLabel = (priceTotal / itemsTotal).ToStringMoney();
-                    var totalLabel = total.ToStringMoney();
 
-
-                    return new SellRecord(thingDef, itemsTotal, total, pricePerLabel, totalLabel);
+                    return new SellRecord(thingDef, itemsTotal, total, pricePerItem);
                 })
                 .Where(x => x != null)
-                .OrderByDescending(x => x.Total)
+                .OrderByDescending(x => x.Total.Value)
                 .ToList();
             return sellEntries;
         }
 
-        public static Dictionary<TradeRule, string> GetRuleCounts(
+        public static Dictionary<TradeRule, ItemAndLabel<int>> GetRuleCounts(
             this Dictionary<TradeRule, List<Thing>> ruleDictionary)
         {
             if (!Mod.Settings.showQuantityInsteadOfLabel)
                 return [];
 
             return ruleDictionary.ToDictionary(x => x.Key,
-                    x => "x" + (x.Key.Aggregation == TradeRuleAggregation.ThingDef
-                        ? x.Value.GroupBy(y => y.def)
-                            .Select(y => new RuleRecord(y.Key, y.ToList().Sum(z => z.stackCount)))
-                            .Max(x => x.Count).ToString()
-                        : x.Value.Sum(y => y.stackCount).ToString()));
+                    x =>
+                    {
+                        var count = x.Key.Aggregation == TradeRuleAggregation.ThingDef
+                            ? x.Value.GroupBy(y => y.def)
+                                .Select(y => new RuleRecord(y.Key, y.ToList().Sum(z => z.stackCount)))
+                                .Max(x => x.Count)
+                            : x.Value.Sum(y => y.stackCount);
+
+                        return new ItemAndLabel<int>(count, "x" + count);
+                    });
         }
 
-        public static List<PotentialItem> GetPossibleItemsList(this TradeRulesGroup rules, List<SellRecord> sellEntries)
+        public static List<PotentialItem> GetPossibleItemsList(this List<TradeRule> rules, List<SellRecord> sellEntries)
         {
             if (!Mod.Settings.showAllMatchingItems)
                 return [];

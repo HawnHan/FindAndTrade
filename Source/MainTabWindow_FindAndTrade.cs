@@ -18,18 +18,18 @@ namespace MGAutoSell
         List<SellRecord> Items,
         List<PotentialItem> PotentialItems,
 
-        float TotalSilver,
-        string TotalSilverLabel,
+        ItemAndLabel<float> TotalSilver,
         TraderRecord Trader,
-        Dictionary<TradeRule, string> Rules);
+        Dictionary<TradeRule, ItemAndLabel<int>> Rules);
 
-    public record SellRecord(ThingDef Item, int Count, float Total, string PricePerLabel, string TotalLabel);
+    public record SellRecord(ThingDef Item, int Count, ItemAndLabel<float> Total, ItemAndLabel<float> Price);
 
     public record TraderRecord(Pawn Pawn, string Name, Func<Texture> Icon, string ImprovementLabel, float Improvement, bool IsLeader);
 
     public record RuleRecord(ThingDef Item, int Count);
 
     public record PotentialItem(ThingDef Item, string Rule);
+    public record ItemAndLabel<T>(T Value, string Label);
 
     public class MainTabWindow_FindAndTrade : MainTabWindow
     {
@@ -168,12 +168,13 @@ namespace MGAutoSell
             Widgets.DrawLineHorizontal(headerRect.x, headerRect.yMax - 2, headerRect.width);
             GUI.color = color;
 
-            if (!showSettingsIcon || !Widgets.ButtonImage(
+            if (showSettingsIcon && Widgets.ButtonImage(
                     headerRect.TopPartPixels(Text.LineHeight).RightPartPixels(Text.LineHeight),
-                    Textures.OptionsGeneral, _fadedColor)) return;
-
-            tradersCache = GetTraders();
-            currentTab = WindowTab.Settings;
+                    Textures.OptionsGeneral, _fadedColor))
+            {
+                tradersCache = GetTraders();
+                currentTab = WindowTab.Settings;
+            }
         }
 
         private void DrawEditTab(Rect panel)
@@ -371,7 +372,7 @@ namespace MGAutoSell
 
             var minRenderIndex = shouldScroll ? Math.Floor(sellScroll.y / Text.LineHeight) : 0;
             var maxRenderIndex = shouldScroll ? Math.Ceiling(viewRect.height / Text.LineHeight) + minRenderIndex : 0;
-            foreach (var (thingDef, count, total, pricePerLabel, totalLabel) in sellCache.Items)
+            foreach (var (thingDef, count, (total, totalLabel), (pricePer, pricePerLabel)) in sellCache.Items)
             {
                 i++;
                 if (shouldScroll)
@@ -450,8 +451,6 @@ namespace MGAutoSell
 
                     Widgets.Label(row.RightPartPixels(size.x), potentialItem.Rule);
                     GUI.color = color;
-
-                    
                 }
             }
 
@@ -497,7 +496,7 @@ namespace MGAutoSell
             }
 
             var footerRow = new WidgetRow(footer.xMax - 4, footer.y, UIDirection.LeftThenDown);
-            footerRow.LabelFast(sellCache.TotalSilverLabel);
+            footerRow.LabelFast(sellCache.TotalSilver.Label);
             footerRow.Icon(ThingDefOf.Silver.uiIcon);
             footerRow.LabelFast("Total:");
         }
@@ -565,7 +564,7 @@ namespace MGAutoSell
 
             var potentialItems = comp.tradeRules.GetPossibleItemsList(sellEntries);
             
-            var totalSilver = (float)Math.Round(sellEntries.Sum(x => x.Total), 0);
+            var totalSilver = (float)Math.Round(sellEntries.Sum(x => x.Total.Value), 0);
 
             var ruleCounts = ruleDictionary.GetRuleCounts();
 
@@ -578,11 +577,10 @@ namespace MGAutoSell
             sellCache = new ItemsToSell(
                 Items: sellEntries,
                 PotentialItems: potentialItems,
-                TotalSilver: totalSilver,
-                TotalSilverLabel: totalSilver.ToStringMoney(),
+                TotalSilver: new ItemAndLabel<float>(totalSilver, totalSilver.ToStringMoney()),
                 Trader: trader,
                 Rules: ruleCounts);
-            sellCache.Rules.RemoveAll(x => string.IsNullOrWhiteSpace(x.Value));
+            sellCache.Rules.RemoveAll(x => x.Value.Value == 0);
 
             nextCache = Find.TickManager.TicksGame + 3600;
             nextQuickCache = DateTime.UtcNow.AddSeconds(1).Ticks;
@@ -674,13 +672,23 @@ namespace MGAutoSell
             if (!Prefs.DevMode) return; // only in dev
             LongEventHandler.ExecuteWhenFinished(() =>
             {
-                // Make sure we actually have a map and the UI is initialized.
-                if (Current.ProgramState != ProgramState.Playing) return;
-                if (Find.CurrentMap == null) return;
+                // ReSharper disable once SwitchStatementMissingSomeEnumCasesNoDefault
+                switch (Mod.Settings.MenuToOpen)
+                {
+                    case OpenSetting.Settings:
+                        Find.WindowStack.Add(new Dialog_ModSettings(Mod.Instance));
+                        break;
+                    case OpenSetting.MainMenuTab:
+                        if (Current.ProgramState != ProgramState.Playing) return;
+                        if (Find.CurrentMap == null) return;
 
-                // Pick the tab you want.
-                var def = MainTabDefOf.FindAndTrade; // e.g. MainButtonDefOf.Assign, Architect, Research, etc.
-                Find.MainTabsRoot.SetCurrentTab(def, playSound: false);
+                        // Pick the tab you want.
+                        var def = MainTabDefOf.FindAndTrade; // e.g. MainButtonDefOf.Assign, Architect, Research, etc.
+                        Find.MainTabsRoot.SetCurrentTab(def, playSound: false);
+                        break;
+                }
+                // Make sure we actually have a map and the UI is initialized.
+                
 
                 //CloseDevConsole();
 
@@ -702,6 +710,13 @@ namespace MGAutoSell
             }
         }
     }
+
+    public enum OpenSetting
+    {
+        None,
+        Settings,
+        MainMenuTab
+    }
 #endif
 
     [DefOf]
@@ -716,4 +731,6 @@ namespace MGAutoSell
         Edit = 1,
         Settings = 2
     }
+
+
 }
