@@ -19,6 +19,11 @@ namespace MGAutoSell
             traders ??= new();
         }
 
+        public override void FinalizeInit()
+        {
+            LongEventHandler.ExecuteWhenFinished(() => CacheUtility.itemCache ??= CacheUtility.GenerateItemCache());
+        }
+
         public override void ExposeData()
         {
             Scribe_Deep.Look(ref tradeRules, nameof(tradeRules));

@@ -25,10 +25,8 @@ namespace MGAutoSell
         ItemAndLabel<long> Total);
     public static class CacheUtility
     {
-        private static List<Thing> itemCache;
+        internal static List<Thing> itemCache;
         
-
-
         public static List<IGrouping<ThingDef, Thing>> GetJunk(this List<Thing> allItems)
         {
             var junk = allItems
@@ -159,7 +157,27 @@ namespace MGAutoSell
             if (!search.Children.queries.Any(x => x.Enabled))
                 return [];
 
-            return itemCache.Where(x => search.AppliesTo(x)).Select(x => x.def).ToList();
+            var removals = new List<Thing>();
+            var possibleItems = itemCache.Where(x =>
+            {
+                try
+                {
+                    return search.AppliesTo(x);
+                }
+                catch
+                {
+                    removals.Add(x);
+                    return false;
+                }
+            }).Select(x => x.def).ToList();
+
+            foreach (var removal in removals)
+            {
+                Log.Warning($"An error occured while matching ThingDef {removal.def.defName} for a rule, removing it from the list.\nIt's possible this item has a complex creation process, hence the error.");
+                itemCache.Remove(removal);
+            }
+
+            return possibleItems;
         }
 
         public static List<Thing> GenerateItemCache()
