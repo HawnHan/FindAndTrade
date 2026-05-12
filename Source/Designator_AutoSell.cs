@@ -15,7 +15,7 @@ namespace MGAutoSell
 
         public Designator_AutoSell()
         {
-            defaultLabel = "Sell";
+            defaultLabel = "MGAutoSell.JunkDesignator".Translate();
             useMouseIcon = true;
             soundSucceeded = SoundDefOf.Designate_Haul;
             icon = Textures.JunkGizmo;

@@ -6,6 +6,6 @@ namespace MGAutoSell.AI
     [DefOf]
     public class AIDefOf
     {
-        public static JobDef MGJobDriver_Barter;
+        public static JobDef MGJob_Barter;
     }
 }

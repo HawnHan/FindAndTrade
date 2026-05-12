@@ -273,8 +273,8 @@ namespace MGAutoSell
             {
                 // Run it twice to get an accurate result
                 if(benchmarkResults == null)
-                    CacheUtility.Cache(Current.Game.GetComponent<TradeRulesGameComp>(), out benchmarkResults, withBenchmark: true);
-                CacheUtility.Cache(Current.Game.GetComponent<TradeRulesGameComp>(), out benchmarkResults, withBenchmark: true);
+                    CacheUtility.Cache(Current.Game.GetComponent<TradeRulesGameComp>(), Find.CurrentMap, out benchmarkResults, withBenchmark: true);
+                CacheUtility.Cache(Current.Game.GetComponent<TradeRulesGameComp>(), Find.CurrentMap, out benchmarkResults, withBenchmark: true);
             }
 
             if (benchmarkResults != null)

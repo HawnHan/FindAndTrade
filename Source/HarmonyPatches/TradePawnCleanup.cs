@@ -8,7 +8,9 @@ namespace MGAutoSell.HarmonyPatches
     {
         public static void Postfix(Pawn __instance)
         {
-            Current.Game.GetComponent<TradeRulesGameComp>().traders.Remove(__instance);
+            var comp = Current.Game.GetComponent<TradeRulesGameComp>();
+            comp.traders.Remove(__instance);
+            comp.SellerOverride.RemoveAll(x => x.Value == __instance);
         }
     }
 }

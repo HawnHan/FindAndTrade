@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
+using RimWorld.Planet;
 using Verse;
 using Verse.AI;
 
@@ -18,7 +19,7 @@ namespace MGAutoSell.AI
         }
 
         public override Job JobOnThing(Pawn pawn, Thing t, bool forced = false) => 
-            new(AIDefOf.MGJobDriver_Barter, t);
+            new(AIDefOf.MGJob_Barter, t, new Settlement().Tile);
 
         public override bool HasJobOnThing(Pawn pawn, Thing t, bool forced = false)
         {
@@ -38,7 +39,7 @@ namespace MGAutoSell.AI
                         pawn.CanTradeWith(tradeShip.Faction, ((ITrader)tradeShip).TraderKind) &&
                         (forced || !comp.traders.Contains(tradeShip)));
                 case Pawn trader:
-                    return pawn.CanTradeWith(trader.Faction, trader.TraderKind) && (forced || !comp.traders.Contains(trader));
+                    return trader.CanTradeNow && pawn.CanTradeWith(trader.Faction, trader.TraderKind) && pawn.CanReserveAndReach(trader, PathEndMode.Touch, Danger.Some) && (forced || !comp.traders.Contains(trader));
                 default:
                     return false;
             }

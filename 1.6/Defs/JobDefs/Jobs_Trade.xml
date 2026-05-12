@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <Defs>
   <JobDef>
-    <defName>MGJobDriver_Barter</defName>
+    <defName>MGJob_Barter</defName>
     <driverClass>MGAutoSell.AI.JobDriver_Barter</driverClass>
     <reportString>Bartering at TargetA.</reportString>
-  </JobDef>  
+  </JobDef>
+
+  <JobDef>
+    <defName>MGJob</defName>
+  </JobDef>
 </Defs>

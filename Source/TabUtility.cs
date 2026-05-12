@@ -183,7 +183,7 @@ namespace MGAutoSell
         public static List<TraderRecord> GetTraders(bool generatePictures = true)
         {
             var stat = StatDefOf.TradePriceImprovement;
-            var freeColonists = Find.CurrentMap.mapPawns.FreeColonists;
+            var freeColonists = Find.CurrentMap?.mapPawns?.FreeColonists ?? [];
             var isIdeologyActive = ModsConfig.IdeologyActive;
             var leader = isIdeologyActive ? Faction.OfPlayer.leader : null;
             var traders = new List<TraderRecord>(freeColonists.Count);

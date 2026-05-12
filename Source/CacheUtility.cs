@@ -72,10 +72,10 @@ namespace MGAutoSell
         public static List<SellRecord> GetEntries(this Dictionary<ThingDef, int> sellDictionary, Pawn socialPawn, ref Dictionary<ThingDef, List<Thing>> thingDictionary)
         {
             var traderPriceType = PriceType.Normal.PriceMultiplier();
-            var playerNegotiator = socialPawn.GetStatValue(StatDefOf.TradePriceImprovement);
-            var settlement = socialPawn.TradePriceImprovementOffsetForPlayer;
-            var drugBonusRaw = socialPawn.GetStatValue(StatDefOf.DrugSellPriceImprovement);
-            var animalProduceBonusRaw = ModsConfig.IdeologyActive
+            var playerNegotiator = socialPawn?.GetStatValue(StatDefOf.TradePriceImprovement) ?? 0.1f;
+            var settlement = 0f;
+            var drugBonusRaw = socialPawn?.GetStatValue(StatDefOf.DrugSellPriceImprovement) ?? 0f;
+            var animalProduceBonusRaw = ModsConfig.IdeologyActive && socialPawn != null
                 ? socialPawn.GetStatValue(StatDefOf.AnimalProductsSellImprovement)
                 : 0f;
             thingDictionary.RemoveAll(x => !x.Value.Any());
@@ -194,7 +194,7 @@ namespace MGAutoSell
                 .Select(y => y.race != null ? PawnGenerator.GeneratePawn(y.race.AnyPawnKind) : ThingMaker.MakeThing(y, y.MadeFromStuff ? GenStuff.DefaultStuffFor(y) : null)).ToList();
         }
 
-        public static ItemsToSell Cache(TradeRulesGameComp comp, out BenchmarkResults benchmark, Pawn SellerOverride = null, bool withBenchmark = false)
+        public static ItemsToSell Cache(TradeRulesGameComp comp, Map map, out BenchmarkResults benchmark, Pawn SellerOverride = null, bool withBenchmark = false)
         {
             long benchmarkAllItems = 0, benchmarkJunk = 0, benchmarkSell = 0, benchmarkTraders = 0, benchmarkSellEntries = 0, benchmarkPossibleItems = 0, benchmarkSilver = 0, benchmarkQuantity = 0, benchmarkBuildCache = 0;
 
@@ -206,11 +206,11 @@ namespace MGAutoSell
 
             var timestamp = Stopwatch.GetTimestamp();
             //var allItems = TradeUtility.AllLaunchableThingsForTrade(Find.CurrentMap).ToList();
-            var allItems = Find.CurrentMap.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver).Where(x =>
+            var allItems = map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver).Where(x =>
                 (!x.IsForbidden(Faction.OfPlayer) || x.Map.zoneManager.ZoneAt(x.Position) != null) &&
                 !x.Position.Fogged(x.Map))
                 .ToList();
-            allItems.AddRange(TradeUtility.AllSellableColonyPawns(Find.CurrentMap, false).ToList());
+            allItems.AddRange(TradeUtility.AllSellableColonyPawns(map, false).ToList());
 
             if (withBenchmark)
                 RecordTime(ref timestamp, ref benchmarkAllItems);
@@ -243,8 +243,8 @@ namespace MGAutoSell
             if (withBenchmark)
                 RecordTime(ref timestamp, ref benchmarkTraders);
 
-            var socialPawn = SellerOverride ?? traders.MaxBy(x => x.Improvement).Pawn;
-            var playerNegotiator = socialPawn.GetStatValue(StatDefOf.TradePriceImprovement);
+            var socialPawn = SellerOverride ?? (traders.Any() ? traders.MaxBy(x => x.Improvement).Pawn : null);
+            var playerNegotiator = socialPawn?.GetStatValue(StatDefOf.TradePriceImprovement) ?? 0.1f;
             var isLeader = ModsConfig.IdeologyActive && socialPawn == Faction.OfPlayer.leader;
 
             var sellEntries = sellDictionary.GetEntries(socialPawn, ref thingDictionary);
@@ -268,9 +268,9 @@ namespace MGAutoSell
                 RecordTime(ref timestamp, ref benchmarkQuantity);
 
             var trader = new TraderRecord(socialPawn,
-                socialPawn.LabelShort,
-                () => PortraitsCache.Get(socialPawn, new Vector2(24, 24), Rot4.South,
-                    ColonistBarColonistDrawer.PawnTextureCameraOffset, 1.28205f),
+                socialPawn?.LabelShort ?? "No trader",
+                () => socialPawn != null ? PortraitsCache.Get(socialPawn, new Vector2(24, 24), Rot4.South,
+                    ColonistBarColonistDrawer.PawnTextureCameraOffset, 1.28205f) : null,
                 playerNegotiator.ToStringPercent(), playerNegotiator, isLeader);
 
             var sellCache = new ItemsToSell(

@@ -34,7 +34,7 @@ namespace MGAutoSell
 
     public class MainTabWindow_FindAndTrade : MainTabWindow
     {
-        public ItemsToSell sellCache;
+        private ItemsToSell sellCache;
         private List<TraderRecord> tradersCache;
 
         private TradeRulesGameComp comp;
@@ -94,6 +94,8 @@ namespace MGAutoSell
 
         public override void DoWindowContents(Rect inRect)
         {
+            var map = Find.CurrentMap;
+            sellCache = comp.Fetch(map);
 #if DEBUG
             if (nextPerformance == 0)
                 nextPerformance = DateTimeOffset.Now.AddSeconds(1).ToUnixTimeSeconds();
@@ -504,30 +506,13 @@ namespace MGAutoSell
 
         public void TryCacheItemsToSell(bool force = false)
         {
-            var shouldUpdate = force || (SellListDirty && nextQuickCache < DateTime.UtcNow.Ticks) ||
-                               nextCache < Find.TickManager.TicksGame;
+            var shouldUpdate = force || (SellListDirty && nextQuickCache < DateTime.UtcNow.Ticks);
 
             if (!shouldUpdate)
                 return;
 
-            CacheItemsToSell();
-        }
-
-        public void CacheItemsToSell(bool withBenchmark = false)
-        {
-#if DEBUG
-            var timestamp = Stopwatch.GetTimestamp();
-
-#endif
-            sellCache = CacheUtility.Cache(comp, out _, SellerOverride, withBenchmark);
-
-            nextCache = Find.TickManager.TicksGame + 3600;
+            comp.SellCache[Find.CurrentMap] = CacheUtility.Cache(comp, Find.CurrentMap, out _, SellerOverride );
             nextQuickCache = DateTime.UtcNow.AddSeconds(1).Ticks;
-
-#if DEBUG
-            var duration = Stopwatch.GetTimestamp() - timestamp;
-            Log.Message($"Generated list in {duration}ts");
-#endif
         }
 
         public TradeRule SelectedTradeRule;

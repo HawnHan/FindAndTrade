@@ -159,7 +159,9 @@ namespace MGAutoSell
             {
                 if (invalidBuy)
                     GUI.color = Invalid;
-                else if (Mod.Settings.colorRuleCountsOnWork && item.Import > 0 && (sellCache?.Rules?.TryGetValue(item, out var count) is not true || count.min.Value < item.Import))
+                else if (Mod.Settings.colorRuleCountsOnWork && item.Import > 0 &&
+                         (sellCache?.Rules?.TryGetValue(item, out var count) is not true ||
+                          count.min.Value < item.Import))
                     GUI.color = ColorFromMode(item.Mode);
 
                 var before = item.Import;

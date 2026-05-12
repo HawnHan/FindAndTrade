@@ -73,7 +73,6 @@ namespace MGAutoSell
             StartGroupedTrading();
             foreach (var passingShip in ships)
             {
-                Log.Message($"Trading with {(passingShip as TradeShip).TraderName}");
                 TradeSession.SetupWith(passingShip as TradeShip, socialPawn, false);
                 var deal = TradeSession.deal;
                 DoTradeDeal(deal);
@@ -199,7 +198,33 @@ namespace MGAutoSell
             }
         }
 
-        public static void DoTradeDeal(TradeDeal deal)
+        public static void SimulateTrade(Pawn socialPawn, ITrader trader, bool doBuy = true)
+        {
+            if (!trader.CanTradeNow)
+                return;
+
+            var comp = Current.Game.GetComponent<TradeRulesGameComp>();
+
+            TradeSession.SetupWith(trader, socialPawn, false);
+            var deal = TradeSession.deal;
+            DoTradeDeal(deal);
+            comp.traders.Add(trader);
+            var silver = deal.CurrencyTradeable.CountToTransfer;
+
+            var buy = deal.AllTradeables
+                .Where(x => x.CountToTransfer > 0 && !x.IsCurrency)
+                .Select(x => (x.ThingDef.label, x.CountToTransfer))
+                .ToList();
+            var sell = deal.AllTradeables
+                .Where(x => x.CountToTransfer < 0 && !x.IsCurrency)
+                .Select(x => (x.ThingDef.label, x.CountToTransfer))
+                .ToList();
+
+            if (!buy.Any() && !sell.Any())
+                return;
+        }
+
+        public static void DoTradeDeal(TradeDeal deal, bool doBuy = true)
         {
             var map = TradeSession.playerNegotiator?.Map;
             if (map == null) return;
@@ -243,8 +268,8 @@ namespace MGAutoSell
 
             foreach (var tradeable in tradeables)
             {
-                var junk = tradeable.thingsColony.Where(x =>
-                    x.Map.designationManager.DesignationOn(x, MGDesignatorDefOf.MGAutoSell) != null).ToList();
+                var junk = tradeable.thingsColony.Where(x => 
+                    x.Map?.designationManager?.DesignationOn(x, MGDesignatorDefOf.MGAutoSell) != null).ToList();
 
                 if(!junk.Any())
                     continue;
@@ -259,7 +284,6 @@ namespace MGAutoSell
             foreach (var rule in autoTrade.tradeRules.Where(x => x.Enabled && x.search.Children.queries.Any()))
             {
                 
-                Log.Message($"Processing rule {rule.search.name}");
                 var items = new List<TradeEntry>();
                 if (Mod.Settings.scanEveryStack)
                 {
@@ -333,6 +357,9 @@ namespace MGAutoSell
                     .ToList();
 
 
+                if(rule.Aggregation == TradeRuleAggregation.Rule)
+                    items.ForEach(x => AddCount(rule, x.ThingDef, x.ColonyCount));
+
                 var toSell = rule.AllowSell
                     ? items
                         .Where(x => 
@@ -374,7 +401,7 @@ namespace MGAutoSell
                 }
 
                 var toBuy =
-                    rule.AllowBuy
+                    doBuy && rule.AllowBuy
                         ? items
                             .Where(x =>
                                 GetCount(rule, x.ThingDef) < rule.Import &&
@@ -437,7 +464,7 @@ namespace MGAutoSell
             }
 
             // Sell marked items first
-            deal.AllTradeables.ForEach(x => x.thingsColony = x.thingsColony.OrderBy(x => x.Map.designationManager.DesignationOn(x, MGDesignatorDefOf.MGAutoSell) == null).ToList());
+            deal.AllTradeables.ForEach(x => x.thingsColony = x.thingsColony.OrderBy(x => x.Map?.designationManager.DesignationOn(x, MGDesignatorDefOf.MGAutoSell) == null).ToList());
         }
 
         private static void NormalizeWith(this TradeDeal deal, List<SellItem> list, Dictionary<Tradeable, TradeRule> pairings, int gap)
