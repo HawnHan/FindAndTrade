@@ -24,6 +24,7 @@ namespace MGAutoSell
         public bool colorRuleCountsOnWork = true;
         public bool showMinMaxLabelWhereApplicable = true;
 
+        public static bool FF_Shuttles = false;
 #if DEBUG
         public OpenSetting MenuToOpen = OpenSetting.None;
 #endif

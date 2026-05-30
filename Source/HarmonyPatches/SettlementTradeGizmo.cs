@@ -16,6 +16,9 @@ namespace MGAutoSell.HarmonyPatches
         private static string _automaticallyTradeLabel, _automaticallyTradeDescription;
         public static void Postfix(Settlement __instance, ref IEnumerable<Gizmo> __result)
         {
+            if (!Settings.FF_Shuttles)
+                return;
+
             _automaticallyTradeLabel ??= "MGAutoSell.Caravan.AutomaticallyTradeLabel".Translate();
             _automaticallyTradeDescription ??= "MGAutoSell.Caravan.AutomaticallyTradeDescription".Translate(); 
             var comp = Find.World.GetComponent<SettlementTracker>();

@@ -17,6 +17,9 @@ namespace MGAutoSell.HarmonyPatches
         [HarmonyPostfix]
         public static void Gizmo(Building_PassengerShuttle __instance, ref IEnumerable<Gizmo> __result)
         {
+            if (!Settings.FF_Shuttles)
+                return;
+
             var comp = Find.World.GetComponent<SettlementTracker>();
             if (__instance.Faction == Faction.OfPlayer)
                 __result = __result.AddItem(new Command_Toggle()
