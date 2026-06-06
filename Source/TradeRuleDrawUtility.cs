@@ -132,7 +132,7 @@ namespace MGAutoSell
                 string label = null;
                 if (Mod.Settings.showQuantityInsteadOfLabel && sellCache != null)
                     label = sellCache.Rules?.TryGetValue(item, out var val) is true && val.max.Value > 0 ? GetModeString(val.min.Label, val.max.Label, LabelSize) : null;
-                label ??= item.Mode.ToString();
+                label ??= StringFromMode(item.Mode);
                 right.Label(label, LabelSize);
 
                 if (item.Mode is TradeMode.Import or TradeMode.Maintain)
@@ -246,6 +246,17 @@ namespace MGAutoSell
                 TradeMode.Export => Green,
                 TradeMode.Import => Blue,
                 TradeMode.Maintain => Yellow,
+                _ => throw new ArgumentOutOfRangeException()
+            };
+        }
+
+        private static string StringFromMode(TradeMode mode)
+        {
+            return mode switch
+            {
+                TradeMode.Export => TagExport,
+                TradeMode.Import => TagImport,
+                TradeMode.Maintain => TagMaintain,
                 _ => throw new ArgumentOutOfRangeException()
             };
         }
