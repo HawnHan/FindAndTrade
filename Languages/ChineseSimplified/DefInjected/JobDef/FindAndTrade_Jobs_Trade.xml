@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<LanguageData>
+  
+  <!-- EN: Doing something. -->
+  <MGJob.reportString>贸易中</MGJob.reportString>
+  
+  <!-- EN: Bartering at TargetA. -->
+  <MGJob_Barter.reportString>正自行与 TargetA 交易</MGJob_Barter.reportString>
+  
+</LanguageData>
