@@ -19,7 +19,7 @@ namespace MGAutoSell.AI
         }
 
         public override Job JobOnThing(Pawn pawn, Thing t, bool forced = false) => 
-            new(AIDefOf.MGJob_Barter, t, new Settlement().Tile);
+            new(AIDefOf.MGJob_Barter, t);
 
         public override bool HasJobOnThing(Pawn pawn, Thing t, bool forced = false)
         {
@@ -34,10 +34,14 @@ namespace MGAutoSell.AI
                             Danger.Some) || commsConsole.Map.passingShipManager.passingShips?.Any() is not true)
                         return false;
 
-                    return map.passingShipManager.passingShips.Any(x =>
+                    var hasPassingShip = map.passingShipManager.passingShips.Any(x =>
                         x is TradeShip tradeShip &&
                         pawn.CanTradeWith(tradeShip.Faction, ((ITrader)tradeShip).TraderKind) &&
                         (forced || !comp.traders.Contains(tradeShip)));
+
+                    if(hasPassingShip && forced)
+                        map.passingShipManager.passingShips.ForEach(x => comp.traders.Remove(x as ITrader));
+                    return hasPassingShip;
                 case Pawn trader:
                     return trader.CanTradeNow && pawn.CanTradeWith(trader.Faction, trader.TraderKind) && pawn.CanReserveAndReach(trader, PathEndMode.Touch, Danger.Some) && (forced || !comp.traders.Contains(trader));
                 default:
