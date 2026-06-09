@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<LanguageData>
+  
+  <!-- EN: trade price category -->
+  <MGAutoSell_Query_TradePrice.label>价格类别</MGAutoSell_Query_TradePrice.label>
+  
+  <!-- EN: trade price amount -->
+  <MGAutoSell_Query_TradePriceAmount.label>价格总额</MGAutoSell_Query_TradePriceAmount.label>
+  
+  <!-- EN: trader kind -->
+  <MGAutoSell_Query_TraderKind.label>商贩类型</MGAutoSell_Query_TraderKind.label>
+  
+  <!-- EN: Is orbital trader -->
+  <MGAutoSell_Query_TraderOrbital.label>贸易飞船</MGAutoSell_Query_TraderOrbital.label>
+  
+</LanguageData>
